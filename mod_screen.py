@@ -10,7 +10,7 @@ import math
 import shapes
 from vectors import v
 
-import quadtree2 as quadtree
+import quadtree
 
 SPAWNCHANCE = 0.01
 MAXSIZE = 200
@@ -130,31 +130,25 @@ class TheScreen(object):
 
 		self.constants = {'drag':50, 'gravity':5000, 'elasticity':0.7, 'friction':0.9, 'displace':0.5}
 
-	############
-	# thing = object to be added.
-	# stationary = whether it is a stationary object which therefore should only check against nonstationary objects.
-	# priority = whether it gets priority drawing privileges.
-	def batch_addcomponent(self, thing, physics=True, collisions=None, static=None, priority=False, listeners=False):
+	def batch_addcomponent(self, thing, physics=True, collisions=None, static=False, priority=False, listeners=False):
+		"""Add a number of components to the lists of objects with various qualities, but do not yet add them to the quadtree.
+
+		This method is supposed to be used to add a large number of objects at once - and then followed up by a call that adds
+		  the appropriate objects into the coltree. The various keyword arguments have meanings:
+		physics: if True, then the object is presumed to have physics behavior.
+		collisions: if True, then the object should be tested for collisions. If physics is True, then this defaults to True.
+		static: if True, the object never moves, and so doesn't need to be tested for collisions with other static objects.
+		priority: if True, the object will be drawn before others. if False, they will be ordered by z-value (if they have one)
+		listeners: if True, the object will receive keyboard and mouse events.
+		"""
+		if collisions is None: collisions = physics
 		try:
 			self.components.append(thing)
-	
 			if physics: self.physics_objects.append(thing)
-			if collisions is None:
-				if physics: self.collision_objects.append(thing)
-			else:
-				if collisions: 
-					self.collision_objects.append(thing)
-					if static: self.static_objects.append(thing)
-					else: self.nonstatic_objects.append(thing)
-# Temporarily removing the stationary/nonstationary distinction.
-#			if stationary == -1:
-#				pass
-#			elif stationary == 0:
-#				try: self.nonstatics.append(thing)			# Non-static objects which test against each other.
-#				except AttributeError: self.nonstatics = [thing]
-#			else:
-#				try: self.statics.append(thing)	# Static ojects which don't need to test against each other.
-#				except AttributeError: self.statics = [thing]
+			if collisions: 
+				self.collision_objects.append(thing)
+				if static: self.static_objects.append(thing)
+				else: self.nonstatic_objects.append(thing)
 			if priority: self.priority.append(thing) # Objects which have priority drawing (these are drawn first).
 			else:
 				self.nonpriority.append(thing)	# Objects which do not have priority drawing.
@@ -165,7 +159,7 @@ class TheScreen(object):
 
 	def addcomponent(self, thing, *args, **kwargs):
 		self.batch_addcomponent(thing, *args, **kwargs)
-		if thing in self.collision_objects: self.coltree.append(thing)
+		if thing in self.nonstatic_objects: self.coltree.append(thing)
 		return thing
 
 	def killcountincrease(self): # increment the kill count!
@@ -187,7 +181,8 @@ class TheScreen(object):
 		pyglet.gl.glPopMatrix()
 
 	def update(self, timestep):
-		""" Update each component. """
+		"""Update the state of each component in the game world."""
+		print('whoa')
 		for thing in self.components:
 			if thing.dead:
 				self.components.remove(thing)
@@ -195,8 +190,6 @@ class TheScreen(object):
 				if thing in self.collision_objects: self.collision_objects.remove(thing)
 				if thing in self.static_objects: self.static_objects.remove(thing)
 				if thing in self.nonstatic_objects: self.nonstatic_objects.remove(thing)
-				#if thing in self.statics: self.statics.remove(thing)
-				#elif thing in self.nonstatics: self.nonstatics.remove(thing)
 				if thing in self.priority: self.priority.remove(thing)
 				if thing in self.nonpriority: self.nonpriority.remove(thing)
 				self.coltree.remove(thing)
@@ -206,8 +199,8 @@ class TheScreen(object):
 
 		# And now they're updated, we do collision detection.
 		colset = []
-
-		for obj in self.collision_objects:
+		
+		for obj in self.nonstatic_objects:
 			colset = self.coltree.collisions(obj) or []
 			for col in colset:
 				self.coltree.remove(col)
@@ -326,18 +319,20 @@ def phys_collide(self,other):
 		velocity_parallel = self.vel - velocity_perpendicular
 		if self.vel*vector > 0:
 			self.vel = self.pscreen.constants['elasticity']*velocity_perpendicular + self.pscreen.constants['friction']*velocity_parallel
-		else :
+		else:
 			self.vel = -self.pscreen.constants['elasticity']*velocity_perpendicular + self.pscreen.constants['friction']*velocity_parallel
 		self.pos = self.pos + self.pscreen.constants['displace'] * vector
-	if other.immobile == 1:
-		self.pos = self.pos + vector
+#	if other.immobile:
+#		self.pos = self.pos + vector
 def update_world(self,timestep):
 	""" The part of the update cycle where the various effects of the world act. """
 	self.acc = self.acc + timestep*self.pscreen.constants['gravity']*(v(0,-1))
 	self.acc = self.acc - timestep*self.pscreen.constants['drag']*self.vel
 def update_inertia(self,timestep):
 	""" Update position and velocity in the standard way. """
-	if not self.pscreen.coltree.remove(self): print("UH OH, {}".format(self))
+	if not self.pscreen.coltree.remove(self): 
+		print("UH OH, {} {}".format(self, len(self.pscreen.coltree)))
+		print(self.pscreen.coltree.statusrep(''))
 	self.vel = self.vel + timestep*self.acc
 	self.pos = self.pos + timestep*self.vel
 	self.acc = v(0,0)
@@ -418,9 +413,10 @@ class Spawner(object):
 			angle = random.random()*2*math.pi
 			newball.vel = v( vel*math.cos(angle), vel*math.sin(angle) )
 
-			self.pscreen.addcomponent(newball, 0,0,0)
+			self.pscreen.addcomponent(newball)
 
 			self.spawncount = self.spawncount + 1
+			print("spawned a thinger!")
 	def draw(self): 
 		pyglet.gl.glColor4f(0.6,0.0,0.6,0.4)
 		self.shape.draw(self.pos, self.z)
@@ -476,7 +472,7 @@ class PlayerBall(object):
 			newbullet.vel = v(0, 500)
 		else:
 			newbullet.vel = self.vel + 500*self.vel.unit()
-		self.pscreen.addcomponent(newbullet, 0,0,0)
+		self.pscreen.addcomponent(newbullet)
 	def gotkill(self, other):
 		self.pscreen.killcountincrease()
 
