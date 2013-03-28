@@ -16,10 +16,9 @@ SPAWNCHANCE = 0.01
 MAXSIZE = 200
 
 def intersecttest(a, b):
-	if a.tangible == 0 or b.tangible == 0:
-		return False
-	return shapes.intersect(a, b)
-#quadtree.intersects = intersecttest
+	if a.tangible and b.tangible:
+		return shapes.intersect(a,b)
+quadtree.intersects = intersecttest
 #quadtree.sortsearchsolution.intersects = intersecttest
 
 """ A class containing a module for the game. """
@@ -85,6 +84,8 @@ class TheScreen(object):
 		
 		self.physics_objects = []
 		self.collision_objects = []
+		self.static_objects = []
+		self.nonstatic_objects = []
 		self.priority = []
 		self.nonpriority = []
 		self.listeners = []
@@ -113,13 +114,13 @@ class TheScreen(object):
 		self.batch_addcomponent( ObstacleBall(self, location = v(-300,-500), rad=100) )
 		self.batch_addcomponent( ObstacleBall(self, location = v(200,300), rad=40) )
 
-		self.batch_addcomponent( ObstacleLine(self, location = v(2000, 0), endpoint=v(500, -1500), thick=20) )
-		self.batch_addcomponent( ObstacleLine(self, location = v(-2000, 0), endpoint=v(-500, -1500), thick=20) )
+		self.batch_addcomponent( ObstacleLine(self, location = v(2000, 0), endpoint=v(500, -1500), thick=20), static=True)
+		self.batch_addcomponent( ObstacleLine(self, location = v(-2000, 0), endpoint=v(-500, -1500), thick=20), static=True )
 
-		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(-1000, -150),thick = 20) )
-		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(1000, -150),thick = 20) )
+		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(-1000, -150),thick = 20), static=True )
+		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(1000, -150),thick = 20), static=True )
 
-		self.batch_addcomponent( InvertBall(self, location = v(0,500), rad=2000) )
+		self.batch_addcomponent( InvertBall(self, location = v(0,500), rad=2000), static=True )
 
 		###########
 		# And now the list of components is done.
@@ -133,7 +134,7 @@ class TheScreen(object):
 	# thing = object to be added.
 	# stationary = whether it is a stationary object which therefore should only check against nonstationary objects.
 	# priority = whether it gets priority drawing privileges.
-	def batch_addcomponent(self, thing, physics=True, collisions=None, priority=False, listeners=False):
+	def batch_addcomponent(self, thing, physics=True, collisions=None, static=None, priority=False, listeners=False):
 		try:
 			self.components.append(thing)
 	
@@ -141,7 +142,10 @@ class TheScreen(object):
 			if collisions is None:
 				if physics: self.collision_objects.append(thing)
 			else:
-				if collisions: self.collision_objects.append(thing)
+				if collisions: 
+					self.collision_objects.append(thing)
+					if static: self.static_objects.append(thing)
+					else: self.nonstatic_objects.append(thing)
 # Temporarily removing the stationary/nonstationary distinction.
 #			if stationary == -1:
 #				pass
@@ -189,6 +193,8 @@ class TheScreen(object):
 				self.components.remove(thing)
 				if thing in self.physics_objects: self.physics_objects.remove(thing)
 				if thing in self.collision_objects: self.collision_objects.remove(thing)
+				if thing in self.static_objects: self.static_objects.remove(thing)
+				if thing in self.nonstatic_objects: self.nonstatic_objects.remove(thing)
 				#if thing in self.statics: self.statics.remove(thing)
 				#elif thing in self.nonstatics: self.nonstatics.remove(thing)
 				if thing in self.priority: self.priority.remove(thing)
@@ -282,7 +288,7 @@ def initialize_habitats(self, pscreen):
 	"""
 	self.pscreen = pscreen
 
-def initialize_states(self, dead=False, tangible=1, immobile=0):
+def initialize_states(self, dead=False, tangible=True, immobile=False):
 	""" Initialize the state variables: whether the object is 
 	dead - if the 'dead' flag is set, then it will be removed next chance we get.
 	tangible - if the 'tangible' value is nonzero and matches another object, then they can collide.
@@ -345,7 +351,7 @@ class FreeBall(object):
 	""" A basic ball object. It's a circle! Woo."""
 	def __init__(self, pscreen, location=v(0,0), *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=1, immobile=0)
+		initialize_states(self, dead=False, tangible=True, immobile=False)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=20)
 	def collide(self,other):
 		phys_collide(self,other)
@@ -357,7 +363,7 @@ class FreeBall(object):
 class ObstacleBall(object):
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=1, immobile=1)
+		initialize_states(self, dead=False, tangible=True, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
@@ -365,7 +371,7 @@ class ObstacleBall(object):
 class ObstacleLine(object):
 	def __init__(self, pscreen, location=v(0,0), endpoint=v(0,1), thick = 0,*args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=1, immobile=1)
+		initialize_states(self, dead=False, tangible=True, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0))
 		self.start = self.pos
 		self.end = endpoint
@@ -376,7 +382,7 @@ class ObstacleLine(object):
 class InvertBall(object):
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=1, immobile=1)
+		initialize_states(self, dead=False, tangible=True, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
 		self.shape.invert = 1
 	def update(self, timestep): pass
@@ -392,7 +398,7 @@ class InvertBall(object):
 class Spawner(object):
 	def __init__(self, pscreen, location=v(0,0), rad=100, z=0.25, *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=0, immobile=1)
+		initialize_states(self, dead=False, tangible=False, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
 		self.z = z
 		self.shape.drawtype = "fill"
@@ -423,7 +429,7 @@ class EnemyBall(object):
 	""" An enemy ball, which can be destroyed by bullets. """
 	def __init__(self, pscreen, location=v(0,0), rad=30, *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=1, immobile=0)
+		initialize_states(self, dead=False, tangible=True, immobile=False)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
 		self.shape.drawtype = "fill"
 		self.enemy = True
@@ -448,7 +454,7 @@ class EnemyBall(object):
 class PlayerBall(object):
 	def __init__(self,pscreen, location=v(0,0), *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=1, immobile=0)
+		initialize_states(self, dead=False, tangible=True, immobile=False)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=12)
 		self.z=0
 
@@ -508,7 +514,7 @@ class BulletBall(object):
 	""" A projectile object. It's a circle! Woo."""
 	def __init__(self, pscreen, parent,location=v(0,0), *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=1, immobile=0)
+		initialize_states(self, dead=False, tangible=True, immobile=False)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=5)
 		self.parent = parent
 		self.bullet = True
@@ -535,7 +541,7 @@ class BulletBall(object):
 class CameraFollower(object):
 	def __init__(self, pscreen, latch=None, spring=30, damping=2):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=0, immobile=0)
+		initialize_states(self, dead=False, tangible=False, immobile=False)
 		self.z = -10
 
 		self.templatetext = "FPS: %.2f"
