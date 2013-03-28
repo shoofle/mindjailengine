@@ -268,18 +268,13 @@ We could just roll with the double-counting, which makes it run more loops.
 """
 
 
-def get_object(index, self=None):
-	return self.items[index]
 ###
 # Linear Sort Search (on the x-axis)
 ###
 class SortSearchList(list):
 	def __init__(self, input_list=[]):
 		list.__init__(self)
-		list.extend(self,input_list)
-		self.indices = range(len(self))
-		self.make_minmax()
-
+		self.extend(input_list)
 
 	def make_minmax(self):
 		self.minimums = sorted(self.indices, key=self.get_x_min)
@@ -305,20 +300,19 @@ class SortSearchList(list):
 	def remove(self, item):
 		if item in self:
 			index = self.index(item)
-			try: self.minimums.remove(index)
-			except ValueError: pass
-			try: self.maximums.remove(index)
-			except ValueError: pass
-			try: self.indices.remove(index)
-			except ValueError: pass
-			return list.remove(self,item)
+			del self[index]
+			#self.minimums = map(lambda x: x if x<index else x-1, self.minimums)
+			#self.maximums = map(lambda x: x if x<index else x-1, self.maximums)
+			self.indices = range(len(self))
+			self.make_minmax()
+			return True
 		else: return False
 		
 	def collisions(self,item):
 		# Gotta find out where item would be if it were in self.items. How do? binary search?
 		output = set()
 
-		# YO CHANGE THIS
+		# If the item being tested were in here, then its index in the list of minimums would be like so
 		index_minimum = bisect.bisect_left(self.minimums, x_min(item), key=self.get_x_min)
 		index_maximum = bisect.bisect_left(self.maximums, x_max(item), key=self.get_x_max)
 
