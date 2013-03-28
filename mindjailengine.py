@@ -13,7 +13,23 @@ from vectors import v
 
 class GameWindow(window.Window):
 	"""This class represents the main window for the game. 
-	At the moment, it also does all the handling of pretty much everything to do with the screen."""
+
+	This class is instantiated once, for the window the game runs in. 
+	Instantiating this is how the game starts everything.
+	This object creates a screen, from mod_screen, on the line under "list of screens to prepare".
+	It then updates that screen at 60fps.
+	Screens take a reference to the window that displays them in their constructor, and, to change 
+	  what screen is up, simply change what window.thescreen points to. For example, when you pause 
+	  the game, the main game screen (an instance of mod_screen.TheScreen) instantiates a new 
+	  PauseScreen, gives it a pointer to itself, and then sets window.thescreen = pause_screen_instance.
+	Now the pause screen is the active screen, and it knows the screen that instantiated it, which it
+	  can return to at any point.
+
+	This GameWindow class also takes care of input handling, and in theory the screens should be able to 
+	  just use a standard interface instead of having to interface with whatever windowing library we use.
+	  At the moment we use pyglet, but... that might not stay.
+
+	"""
 	def __init__(self, *args, **kwargs):
 		"""Set us up the window!"""
 		window.Window.__init__(self, *args, **kwargs)

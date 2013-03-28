@@ -24,9 +24,41 @@ quadtree.sortsearchsolution.intersects = intersecttest
 
 """ A class containing a module for the game. """
 class TheScreen(object):
-	""" A game screen. This is what we're rolling with now. 
-	
-	Relevant function: thescreen.addcomponent(thing, static, priority, listener), which adds 'thing' to the components list.
+	""" Encapsulates the main action of gameplay - whizzing around in a terrain, shooting things, etc.
+
+	In the future, a lot of the behavior handled here will be offloaded to level-specific scripting and such,
+	  but TheScreen (TODO: retitle to something descriptive) should handle tracking the set of objects, firing
+	  keyboard events to the objects that want them, collision detection, physics in general, collision events,
+	  and for now it tracks health and score and such.
+	TheScreen.addcomponent(thing, static, priority, listener), which adds 'thing' to the components list.
+
+	TODO: this is going to be changed over to a component-entity system to separate out physics from other behaviors.
+	  Instead, there's going to be a... recipe? system, wherein objects will be built by requesting a new entity 
+	  identifier (just a unique reference to a new object) and then adding a number of components, each of which
+	  describes one aspect of the entity's behavior, to it. So it should look like this:
+	    player_object = self.new_entity()
+	    player_object.add_components(RigidBody, CameraFollower, Drawable, ControlsListener, BallFlightBehaviors)
+	    player_object.RigidBody.position = 0,0
+	    player_object.RigidBody.mass, player_object.RigidBody.radius = 5, 10
+	    player_object.CameraFollower.spring_constant = 10
+	    player_object.Drawable = # no idea how this is going to be defined in practice
+	  and that would add those behaviors into the entity, and also to the systems that define how they behave.
+	  Some components require other components, so for example when it adds BallFlightBehaviors, it checks to see
+	    if there's a ControlsListener attached to this entity. Some components are simply collections of 
+	    components - the RigidBody component is a Position component plus a Shape component, with a mass and so on.
+	  So RigidBody would define the solid dynamics of it, CameraFollower would make sure that our camera follows,
+	    ControlsListener would get events and pass them in, and BallFlightBehaviors would make it so that
+	    those events are handled and turned into flying around.
+	  A free-falling ball might look like this:
+	    free_ball = self.new_entity()
+	    free_ball.add_components(RigidBody, Drawable)
+	  An enemy spawner would look like this:
+	    spawner = self.new_entity()
+	    spawner.add_components(RigidBody, Drawable, EnemyCreatingBehavior)
+	  These would all be defined in functions so that instead you can simply say make_spawner(location) twice 
+	    instead of having to actually define the spawner twice. That function is what I call a recipe - it says
+	    "make a new entity, and put on the following pieces in this order".
+	That's a lot of words.
 	"""
 	def __init__(self, pwin):
 		""" Initialize the gamescreen. pwin is the parent window. """
@@ -49,6 +81,7 @@ class TheScreen(object):
 		###########
 		
 		self.coltree = quadtree.QuadTree(items=[], center=v(0,0), height=8)
+		self.components = []
 
 		# and now, the things!
 
@@ -72,11 +105,11 @@ class TheScreen(object):
 		self.batch_addcomponent( ObstacleBall(self, location = v(-300,-500), rad=100), 0,0,0)
 		self.batch_addcomponent( ObstacleBall(self, location = v(200,300), rad=40), 0,0,0)
 
-		self.batch_addcomponent( ObstacleLine(self, location = v(2000, 0), endpoint=v(500, -1500), thick=20), 0,0,0)
-		self.batch_addcomponent( ObstacleLine(self, location = v(-2000, 0), endpoint=v(-500, -1500), thick=20), 0,0,0)
+		self.batch_addcomponent( ObstacleLine(self, location = v(2000, 0), endpoint=v(500, -1500), thick=20), 1,0,0)
+		self.batch_addcomponent( ObstacleLine(self, location = v(-2000, 0), endpoint=v(-500, -1500), thick=20), 1,0,0)
 
-		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(-1000, -150),thick = 20), 0,0,0)
-		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(1000, -150),thick = 20), 0,0,0)
+		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(-1000, -150),thick = 20), 1,0,0)
+		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(1000, -150),thick = 20), 1,0,0)
 
 		self.batch_addcomponent( InvertBall(self, location = v(0,500), rad=2000), 1,0,0)
 
@@ -94,16 +127,15 @@ class TheScreen(object):
 	# stationary = whether it is a stationary object which therefore should only check against nonstationary objects.
 	# priority = whether it gets priority drawing privileges.
 	def batch_addcomponent(self, thing, stationary, priority, listeners):
-		try: self.components.append(thing)
-		except AttributeError: self.components = [thing]
+		self.components.append(thing)
+
 		if stationary == -1:
 			pass
 		elif stationary == 0:
 			try: self.nonstatics.append(thing)			# Non-static objects which test against each other.
 			except AttributeError: self.nonstatics = [thing]
 		else:
-			try: 
-				self.statics.append(thing)				# Static ojects which don't need to test against each other.
+			try: self.statics.append(thing)				# Static ojects which don't need to test against each other.
 			except AttributeError: self.statics = [thing]
 		if not priority == 0:
 			try: self.priority.append(thing)			# Objects which have priority drawing (these are drawn first).
@@ -162,7 +194,11 @@ class TheScreen(object):
 			colset = self.coltree.collisions(obj) or []
 			for col in colset:
 				obj.collide(col)
-		print self.coltree.statusrep("")
+		for obj in self.nonstatics:
+			colset = self.coltree.collisions(obj) or []
+			for col in colset:
+				obj.collide(col)
+		#print self.coltree.statusrep("")
 		# Done checking for/reacting to collisions!
 
 	def on_key_press(self, symbol, modifiers):
