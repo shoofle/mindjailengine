@@ -52,8 +52,9 @@ The biggest problem is the missed objects.
 Now, how can we ensure that we find these objects?
 We could just roll with the double-counting, which makes it run more loops.
 """
-def intersects(x,y):
-	return shapes.intersect(x,y)
+def intersects(a,b):
+	return False if a.tangible == 0 or b.tangible == 0 else shapes.intersect(a,b)
+#	return shapes.intersect(x,y)
 #	return abs(x.pos-y.pos) < x.radius + y.radius
 
 x_min = lambda obj: obj.pos.x + obj.shape.xbounds[0]

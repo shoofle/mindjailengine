@@ -23,48 +23,59 @@ def intersect(me, you):
 		return linecircle(me,you)
 	if me.shape.name == SHAPE_CIRCLE and you.shape.name == SHAPE_LINE:
 		output = linecircle(you,me)
-		if output is None: return None
-		return -linecircle(you,me)
-	else: return None
+		return -output if output else None
+
 def linecircle(lineobj, circleobj):
+	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting."""
 	# Comes from http://blog.generalrelativity.org/actionscript-30/collision-detection-circleline-segment-circlecapsule/ , pretty much.
 	sep = circleobj.pos - lineobj.pos
 	line = lineobj.shape
 	circle = circleobj.shape
 
-	# factor holds... a thing.
+	# factor holds the location along the line's central axis of the closest point to the circle.
 	factor = sep.projs(line.v)
-	if factor < 0: factor = 0
+	if factor < 0: factor = 0 
 	if factor > abs(line.v): factor = abs(line.v)
-	newsep = circleobj.pos - (lineobj.pos + factor*line.v.unit())
+
+	# Newsep is the distance from the center of the circle to the closest point on the axis of the line.
+	newsep = circleobj.pos - (lineobj.pos + factor*line.v.unit()) 
 
 	# Now we've got the newsep, which is the vector from the closest point on the line to the circle's center.
 	# If abs(newsep) is 0, then output should be circle.rad
 	# If abs(newsep) is circle.rad, then output should be 0.
 	if newsep.x == 0 and newsep.y == 0:
 		return -line.v.unit() * (circle.rad + line.thickness)
-	if abs(newsep) < circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness: 
+	if abs(newsep) < circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness:
+		# If the separation is less than the combination of circle radius, line radius, and the perpendicular component of the circle's velocity...
 		return newsep.unit() * (circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness - abs(newsep))
 	return None
+
 def circlecircle(me,you):
-	sep = me.pos - you.pos
-	if sep.x == 0 and sep.y == 0:
-		usep = v(0,-1)
-		msep = 0
+	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting."""
+	separation = me.pos - you.pos # My distance from you.
+	if separation.x == 0 and separation.y == 0:
+		unit_separation = v(0,-1)
+		separation_magnitude = 0
 	else:
-		msep = abs(sep)
-		usep = sep.unit()
+		separation_magnitude = abs(separation)
+		unit_separation = separation.unit()
 
 	ts = defaultTS
 	output = intervalcompare(\
-		(-me.shape.rad - ts*(me.vel*usep), me.shape.rad - ts*(me.vel*usep)), \
-		(-you.shape.rad - ts*(you.vel*usep), you.shape.rad - ts*(you.vel*usep)), \
-		msep, meinv = me.shape.invert , othinv = you.shape.invert )
+		(-me.shape.rad - ts*(me.vel*unit_separation),   me.shape.rad - ts*(me.vel*unit_separation)  ), \
+		(-you.shape.rad - ts*(you.vel*unit_separation), you.shape.rad - ts*(you.vel*unit_separation)), \
+		separation_magnitude, meinv = me.shape.invert , othinv = you.shape.invert )
 
 	if output == None : return None
-	return output*usep 
+	return output*unit_separation 
 
 def intervalcompare(extentsme, extentsother, msep, meinv = 0, othinv = 0):
+	"""Returns the amount by which to move 'me' to ensure that two intervals are no longer intersecting, or none if they're already fine.
+	
+	extentsme and extentsother are tuples of left and right extents. 
+	msep is the amount by which their centers are separated.
+	meinv and othinv are flags - if they're nonzero, then different logic is used.
+	"""
 	output = None
 	#Possibilities:
 	# If we're both inverted, then it's like this:				]a	b[	}c	d{

@@ -10,7 +10,7 @@ import math
 import shapes
 from vectors import v
 
-import quadtree
+import quadtree2 as quadtree
 
 SPAWNCHANCE = 0.01
 MAXSIZE = 200
@@ -19,8 +19,8 @@ def intersecttest(a, b):
 	if a.tangible == 0 or b.tangible == 0:
 		return False
 	return shapes.intersect(a, b)
-quadtree.intersects = intersecttest
-quadtree.sortsearchsolution.intersects = intersecttest
+#quadtree.intersects = intersecttest
+#quadtree.sortsearchsolution.intersects = intersecttest
 
 """ A class containing a module for the game. """
 class TheScreen(object):
@@ -80,79 +80,89 @@ class TheScreen(object):
 		# For now, this is just a pile of stuff.
 		###########
 		
-		self.coltree = quadtree.QuadTree(items=[], center=v(0,0), height=8)
+		# Set up all the different lists of objects in the world. These roughly correspond to managers! Sort of.
+		self.coltree = quadtree.QuadTree(items=[], center=v(0,0), height=4)
+		
+		self.physics_objects = []
+		self.collision_objects = []
+		self.priority = []
+		self.nonpriority = []
+		self.listeners = []
+
 		self.components = []
 
 		# and now, the things!
 
-		playerobj = self.batch_addcomponent( PlayerBall(self, location = v(0,0)), 0,0,1)
-		self.batch_addcomponent( CameraFollower(self, latch=playerobj, spring=50, damping=10), -1,0,0)
+		playerobj = self.batch_addcomponent( PlayerBall(self, location = v(0,0)), listeners=True)
+		self.batch_addcomponent( CameraFollower(self, latch=playerobj, spring=50, damping=10), collisions=False) # Doesn't need collisions.
 
-		self.batch_addcomponent( FreeBall(self, location = v(0,-50)), 0,0,0)
-		self.batch_addcomponent( FreeBall(self, location = v(-100,0)), 0,0,0)
-		self.batch_addcomponent( FreeBall(self, location = v(100,0)), 0,0,0)
+		self.batch_addcomponent( FreeBall(self, location = v(0,-50)) )
+		self.batch_addcomponent( FreeBall(self, location = v(-100,0)) )
+		self.batch_addcomponent( FreeBall(self, location = v(100,0)) )
 
-		self.batch_addcomponent( Spawner(self, location = v(-500, 1500), rad=250), -1,0,0)
-		self.batch_addcomponent( Spawner(self, location = v(500, 1500), rad=250), -1,0,0)
+		self.batch_addcomponent( Spawner(self, location = v(-500, 1500), rad=250), physics=False)
+		self.batch_addcomponent( Spawner(self, location = v(500, 1500), rad=250), physics=False)
 
-		self.batch_addcomponent( EnemyBall(self, location = v(-200,30), rad=30), 0,0,0)
-		self.batch_addcomponent( EnemyBall(self, location = v(-260,0), rad=30), 0,0,0)
-		self.batch_addcomponent( EnemyBall(self, location = v(-100,60), rad=30), 0,0,0)
+		self.batch_addcomponent( EnemyBall(self, location = v(-200,30), rad=30) )
+		self.batch_addcomponent( EnemyBall(self, location = v(-260,0), rad=30) )
+		self.batch_addcomponent( EnemyBall(self, location = v(-100,60), rad=30) )
 
-		self.batch_addcomponent( ObstacleBall(self, location = v(-120,-200), rad=50), 0,0,0)
-		self.batch_addcomponent( ObstacleBall(self, location = v(60,-300), rad=30), 0,0,0)
-		self.batch_addcomponent( ObstacleBall(self, location = v(0,-800), rad=200), 0,0,0)
-		self.batch_addcomponent( ObstacleBall(self, location = v(-300,-500), rad=100), 0,0,0)
-		self.batch_addcomponent( ObstacleBall(self, location = v(200,300), rad=40), 0,0,0)
+		self.batch_addcomponent( ObstacleBall(self, location = v(-120,-200), rad=50) )
+		self.batch_addcomponent( ObstacleBall(self, location = v(60,-300), rad=30) )
+		self.batch_addcomponent( ObstacleBall(self, location = v(0,-800), rad=200) )
+		self.batch_addcomponent( ObstacleBall(self, location = v(-300,-500), rad=100) )
+		self.batch_addcomponent( ObstacleBall(self, location = v(200,300), rad=40) )
 
-		self.batch_addcomponent( ObstacleLine(self, location = v(2000, 0), endpoint=v(500, -1500), thick=20), 1,0,0)
-		self.batch_addcomponent( ObstacleLine(self, location = v(-2000, 0), endpoint=v(-500, -1500), thick=20), 1,0,0)
+		self.batch_addcomponent( ObstacleLine(self, location = v(2000, 0), endpoint=v(500, -1500), thick=20) )
+		self.batch_addcomponent( ObstacleLine(self, location = v(-2000, 0), endpoint=v(-500, -1500), thick=20) )
 
-		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(-1000, -150),thick = 20), 1,0,0)
-		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(1000, -150),thick = 20), 1,0,0)
+		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(-1000, -150),thick = 20) )
+		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(1000, -150),thick = 20) )
 
-		self.batch_addcomponent( InvertBall(self, location = v(0,500), rad=2000), 1,0,0)
+		self.batch_addcomponent( InvertBall(self, location = v(0,500), rad=2000) )
 
 		###########
 		# And now the list of components is done.
 		###########
 
-		self.coltree.extend(self.nonstatics)
-		self.coltree.extend(self.statics)
+		self.coltree.extend(self.collision_objects)
 
-		self.constants = {'drag':10, 'gravity':5000, 'elasticity':0.7, 'friction':0.9, 'displace':0.3}
+		self.constants = {'drag':50, 'gravity':5000, 'elasticity':0.7, 'friction':0.9, 'displace':0.5}
 
 	############
 	# thing = object to be added.
 	# stationary = whether it is a stationary object which therefore should only check against nonstationary objects.
 	# priority = whether it gets priority drawing privileges.
-	def batch_addcomponent(self, thing, stationary, priority, listeners):
-		self.components.append(thing)
+	def batch_addcomponent(self, thing, physics=True, collisions=None, priority=False, listeners=False):
+		try:
+			self.components.append(thing)
+	
+			if physics: self.physics_objects.append(thing)
+			if collisions is None:
+				if physics: self.collision_objects.append(thing)
+			else:
+				if collisions: self.collision_objects.append(thing)
+# Temporarily removing the stationary/nonstationary distinction.
+#			if stationary == -1:
+#				pass
+#			elif stationary == 0:
+#				try: self.nonstatics.append(thing)			# Non-static objects which test against each other.
+#				except AttributeError: self.nonstatics = [thing]
+#			else:
+#				try: self.statics.append(thing)	# Static ojects which don't need to test against each other.
+#				except AttributeError: self.statics = [thing]
+			if priority: self.priority.append(thing) # Objects which have priority drawing (these are drawn first).
+			else:
+				self.nonpriority.append(thing)	# Objects which do not have priority drawing.
+				self.nonpriority.sort(key = lambda t: t.z if hasattr(t,"z") else 0)
+			if listeners: self.listeners.append(thing)
+		except AttributeError as e: print("There was some kind of problem building the list of objects in the world. \n{}".format(e))
+		finally: return thing
 
-		if stationary == -1:
-			pass
-		elif stationary == 0:
-			try: self.nonstatics.append(thing)			# Non-static objects which test against each other.
-			except AttributeError: self.nonstatics = [thing]
-		else:
-			try: self.statics.append(thing)				# Static ojects which don't need to test against each other.
-			except AttributeError: self.statics = [thing]
-		if not priority == 0:
-			try: self.priority.append(thing)			# Objects which have priority drawing (these are drawn first).
-			except AttributeError: self.priority = [thing]
-		else:
-			try: self.nonpriority.append(thing)			# Objects which do not have priority drawing.
-			except AttributeError: self.nonpriority = [thing]
-			self.nonpriority.sort(key = lambda t: t.z if hasattr(t,"z") else 0)
-		if not listeners == 0:
-			try: self.listeners.append(thing)
-			except AttributeError: self.listeners = [thing]
+	def addcomponent(self, thing, *args, **kwargs):
+		self.batch_addcomponent(thing, *args, **kwargs)
+		if thing in self.collision_objects: self.coltree.append(thing)
 		return thing
-
-
-	def addcomponent(self, thing, stationary, priority, listeners):
-		self.coltree.append(thing)
-		return self.batch_addcomponent(thing,stationary,priority,listeners)
 
 	def killcountincrease(self): # increment the kill count!
 		self.killcount = self.killcount + 1
@@ -164,9 +174,9 @@ class TheScreen(object):
 		#pyglet.gl.glEnable(pyglet.gl.GL_DEPTH_TEST)
 		pyglet.gl.glClearColor(1.0,1.0,1.0,0.0)
 		pyglet.gl.glPushMatrix()
-		#for thing in self.priority:
-		#	pyglet.gl.glColor3f(0.0,0.0,0.0)
-		#	thing.draw()
+		for thing in self.priority:
+			pyglet.gl.glColor3f(0.0,0.0,0.0)
+			thing.draw()
 		for thing in self.nonpriority:
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
 			thing.draw()
@@ -177,9 +187,11 @@ class TheScreen(object):
 		for thing in self.components:
 			if thing.dead:
 				self.components.remove(thing)
-				if thing in self.statics: self.statics.remove(thing)
-				elif thing in self.nonstatics: self.nonstatics.remove(thing)
-				#if thing in self.priority: self.priority.remove(thing)
+				if thing in self.physics_objects: self.physics_objects.remove(thing)
+				if thing in self.collision_objects: self.collision_objects.remove(thing)
+				#if thing in self.statics: self.statics.remove(thing)
+				#elif thing in self.nonstatics: self.nonstatics.remove(thing)
+				if thing in self.priority: self.priority.remove(thing)
 				if thing in self.nonpriority: self.nonpriority.remove(thing)
 				self.coltree.remove(thing)
 				continue
@@ -187,17 +199,16 @@ class TheScreen(object):
 
 
 		# And now they're updated, we do collision detection.
-		colset = set()
+		colset = []
 
-		### Statics-nonstatics detection.
-		for obj in self.statics:
+		for obj in self.collision_objects:
 			colset = self.coltree.collisions(obj) or []
 			for col in colset:
+				self.coltree.remove(col)
+				self.coltree.remove(obj)
 				obj.collide(col)
-		for obj in self.nonstatics:
-			colset = self.coltree.collisions(obj) or []
-			for col in colset:
-				obj.collide(col)
+				self.coltree.append(obj)
+				self.coltree.append(col)
 		#print self.coltree.statusrep("")
 		# Done checking for/reacting to collisions!
 
@@ -301,16 +312,16 @@ def phys_collide(self,other):
 	If they're immobile, move us out.
 	"""
 	#comme = self.vel - com
-	vector = other.pos - self.pos
+	vector = shapes.intersect(self, other)
 	self.vel = self.vel + v(0,200)
-	if vector == None: return None
+	if vector is None: return None
 	else:
-		velperp = self.vel.proj(vector)
-		velpar = self.vel - velperp
+		velocity_perpendicular = self.vel.proj(vector)
+		velocity_parallel = self.vel - velocity_perpendicular
 		if self.vel*vector > 0:
-			self.vel = self.pscreen.constants['elasticity'] * velperp + self.pscreen.constants['friction'] * velpar
+			self.vel = self.pscreen.constants['elasticity']*velocity_perpendicular + self.pscreen.constants['friction']*velocity_parallel
 		else :
-			self.vel = -self.pscreen.constants['elasticity'] * velperp + self.pscreen.constants['friction'] * velpar
+			self.vel = -self.pscreen.constants['elasticity']*velocity_perpendicular + self.pscreen.constants['friction']*velocity_parallel
 		self.pos = self.pos + self.pscreen.constants['displace'] * vector
 	if other.immobile == 1:
 		self.pos = self.pos + vector
@@ -320,7 +331,7 @@ def update_world(self,timestep):
 	self.acc = self.acc - timestep*self.pscreen.constants['drag']*self.vel
 def update_inertia(self,timestep):
 	""" Update position and velocity in the standard way. """
-	self.pscreen.coltree.remove(self)
+	if not self.pscreen.coltree.remove(self): print("UH OH, {}".format(self))
 	self.vel = self.vel + timestep*self.acc
 	self.pos = self.pos + timestep*self.vel
 	self.acc = v(0,0)

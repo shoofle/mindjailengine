@@ -11,9 +11,10 @@ split_threshhold = 5
 
 def intersects(me, you):
 	"""Return whether or not me and you are colliding. May very well be overwritten by the caller of the library."""
-	return abs(me.pos-you.pos) <= me.radius + you.radius
+	return False if a.tangible == 0 or b.tangible == 0 else shapes.intersect(a,b)
+#	return abs(me.pos-you.pos) <= me.radius + you.radius
 
-sortsearchsolution.intersects = intersects
+#sortsearchsolution.intersects = intersects
 
 class QuadTree(list):
 	def __init__(self,items=[],center=v(0,0), height=8):
@@ -40,11 +41,6 @@ class QuadTree(list):
 		return output
 			
 	def collisions(self, obj):
-		if y_min(obj) > self.ymax: return set()
-		if y_max(obj) < self.ymin: return set()
-		if x_min(obj) > self.xmax: return set()
-		if x_max(obj) < self.xmin: return set()
-
 		output = self.Items.collisions(obj) # Calls collisions from Items. Here's the problem maybe?
 		if x_min(obj) < self.xc:
 			if y_min(obj) < self.yc and self[3] is not None: output = output | self[3].collisions(obj)
@@ -62,11 +58,6 @@ class QuadTree(list):
 		solution I came up with for multiple insertions (at creation time) was to
 		sample a random third of the points and average their positions.
 		"""
-		# If it extends our bounds, extend our bounds.
-		if y_min(obj) < self.ymin: self.ymin = y_min(obj)
-		if y_max(obj) > self.ymax: self.ymax = y_max(obj)
-		if x_min(obj) < self.xmin: self.xmin = x_min(obj)
-		if x_max(obj) > self.xmax: self.xmax = x_max(obj)
 
 		if obj in self.Items: return self.height   ### If the object is in this level, go ahead and return the current height
 		if x_min(obj) > self.xc: # If it's east of center
@@ -108,10 +99,6 @@ class QuadTree(list):
 				elif y_max(thing) < self.yc: appendage[3].append(thing)
 				else: self.Items.append(thing)
 			else: self.Items.append(thing)
-			if x_min(thing) < self.xmin: self.xmin = x_min(thing)
-			if x_max(thing) > self.xmax: self.xmax = x_max(thing)
-			if y_min(thing) < self.ymin: self.ymin = y_min(thing)
-			if y_max(thing) > self.ymax: self.ymax = y_max(thing)
 		for i, quadrantlist in enumerate(appendage):
 			if len(quadrantlist) == 0: continue
 			if self[i] is None:
