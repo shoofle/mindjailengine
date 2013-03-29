@@ -23,7 +23,7 @@ def intersect(me, you):
 		return linecircle(me,you)
 	if me.shape.name == SHAPE_CIRCLE and you.shape.name == SHAPE_LINE:
 		output = linecircle(you,me)
-		return -output if output else None
+		return -output if output is not None else None
 
 def linecircle(lineobj, circleobj):
 	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting."""
@@ -66,7 +66,7 @@ def circlecircle(me,you):
 		(-you.shape.rad - ts*(you.vel*unit_separation), you.shape.rad - ts*(you.vel*unit_separation)), \
 		separation_magnitude, meinv = me.shape.invert , othinv = you.shape.invert )
 
-	if output == None : return None
+	if output is None : return None
 	return output*unit_separation 
 
 def intervalcompare(extentsme, extentsother, msep, meinv = 0, othinv = 0):

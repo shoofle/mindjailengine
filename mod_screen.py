@@ -84,8 +84,6 @@ class TheScreen(object):
 		
 		self.physics_objects = []
 		self.collision_objects = []
-		self.static_objects = []
-		self.nonstatic_objects = []
 		self.priority = []
 		self.nonpriority = []
 		self.listeners = []
@@ -101,8 +99,8 @@ class TheScreen(object):
 		self.batch_addcomponent( FreeBall(self, location = v(-100,0)) )
 		self.batch_addcomponent( FreeBall(self, location = v(100,0)) )
 
-		self.batch_addcomponent( Spawner(self, location = v(-500, 1500), rad=250), physics=False)
-		self.batch_addcomponent( Spawner(self, location = v(500, 1500), rad=250), physics=False)
+		self.batch_addcomponent( Spawner(self, location = v(-500, 1500), rad=250), physics=False, collisions=False)
+		self.batch_addcomponent( Spawner(self, location = v(500, 1500), rad=250), physics=False, collisions=False)
 
 		self.batch_addcomponent( EnemyBall(self, location = v(-200,30), rad=30) )
 		self.batch_addcomponent( EnemyBall(self, location = v(-260,0), rad=30) )
@@ -128,7 +126,8 @@ class TheScreen(object):
 
 		self.coltree.extend(self.collision_objects)
 
-		self.constants = {'drag':50, 'gravity':5000, 'elasticity':0.7, 'friction':0.9, 'displace':0.5}
+		print(self.coltree.statusrep(''))
+		self.constants = {'drag':10, 'gravity':5000, 'elasticity':0.7, 'friction':0.9, 'displace':0.5}
 
 	def batch_addcomponent(self, thing, physics=True, collisions=None, static=False, priority=False, listeners=False):
 		"""Add a number of components to the lists of objects with various qualities, but do not yet add them to the quadtree.
@@ -145,10 +144,7 @@ class TheScreen(object):
 		try:
 			self.components.append(thing)
 			if physics: self.physics_objects.append(thing)
-			if collisions: 
-				self.collision_objects.append(thing)
-				if static: self.static_objects.append(thing)
-				else: self.nonstatic_objects.append(thing)
+			if collisions: self.collision_objects.append(thing)
 			if priority: self.priority.append(thing) # Objects which have priority drawing (these are drawn first).
 			else:
 				self.nonpriority.append(thing)	# Objects which do not have priority drawing.
@@ -159,7 +155,7 @@ class TheScreen(object):
 
 	def addcomponent(self, thing, *args, **kwargs):
 		self.batch_addcomponent(thing, *args, **kwargs)
-		if thing in self.nonstatic_objects: self.coltree.append(thing)
+		if thing in self.collision_objects: self.coltree.append(thing)
 		return thing
 
 	def killcountincrease(self): # increment the kill count!
@@ -182,38 +178,34 @@ class TheScreen(object):
 
 	def update(self, timestep):
 		"""Update the state of each component in the game world."""
-		print('whoa')
-		for thing in self.components:
-			if thing.dead:
-				self.components.remove(thing)
-				if thing in self.physics_objects: self.physics_objects.remove(thing)
-				if thing in self.collision_objects: self.collision_objects.remove(thing)
-				if thing in self.static_objects: self.static_objects.remove(thing)
-				if thing in self.nonstatic_objects: self.nonstatic_objects.remove(thing)
-				if thing in self.priority: self.priority.remove(thing)
-				if thing in self.nonpriority: self.nonpriority.remove(thing)
-				self.coltree.remove(thing)
-				continue
-			thing.update(timestep)
 
+		dead_things = [t for t in self.components if t.dead]
+
+		for thing in dead_things:
+			self.components.remove(thing)
+			if thing in self.physics_objects: 	self.physics_objects.remove(thing)
+			if thing in self.collision_objects: self.collision_objects.remove(thing)
+			if thing in self.priority: 			self.priority.remove(thing)
+			if thing in self.nonpriority: 		self.nonpriority.remove(thing)
+			print(self.coltree.remove(thing))
+			del thing
+
+		for thing in self.components: thing.update(timestep)
 
 		# And now they're updated, we do collision detection.
-		colset = []
+		colset = set()
 		
-		for obj in self.nonstatic_objects:
-			colset = self.coltree.collisions(obj) or []
+		for obj in self.collision_objects:
+			colset = self.coltree.collisions(obj) or set()
 			for col in colset:
-				self.coltree.remove(col)
-				self.coltree.remove(obj)
 				obj.collide(col)
-				self.coltree.append(obj)
-				self.coltree.append(col)
-		#print self.coltree.statusrep("")
+				col.collide(obj)
 		# Done checking for/reacting to collisions!
 
 	def on_key_press(self, symbol, modifiers):
 		if symbol == key.P: # If they pressed p, we want to pause.
 			self.pwin.thescreen = PauseScreen(self.pwin, self)
+		if symbol == key.R: print(self.coltree.statusrep(''))
 		for thing in self.listeners:
 			thing.on_key_press(symbol, modifiers)
 	def on_key_release(self, symbol, modifiers):
@@ -292,9 +284,10 @@ def initialize_states(self, dead=False, tangible=True, immobile=False):
 	self.immobile = immobile
 def initialize_attributes(self, pos=v(0,0), vel=v(0,0), acc=v(0,0), r=20, shape=None, numpoints=60, **kwargs):
 	""" Initialize various attributes of the physics-ness of the object.
-	x - starting location, obviously.
-	v - starting velocity.
-	f - starting acceleration. Don't have mass yet. When we have mass, this'll be starting force.
+
+	pos - starting location, obviously.
+	vel - starting velocity.
+	acc - starting acceleration. Don't have mass yet. When we have mass, this'll be starting force.
 	r - radius scale of the object.
 	shape - a shape, if you want a non-circle one.
 	"""
@@ -310,11 +303,10 @@ def phys_collide(self,other):
 	""" Standard collision response. Reflect our velocity along the collision line thing.
 	If they're immobile, move us out.
 	"""
-	#comme = self.vel - com
 	vector = shapes.intersect(self, other)
-	self.vel = self.vel + v(0,200)
 	if vector is None: return None
 	else:
+		vector = -vector
 		velocity_perpendicular = self.vel.proj(vector)
 		velocity_parallel = self.vel - velocity_perpendicular
 		if self.vel*vector > 0:
@@ -322,17 +314,15 @@ def phys_collide(self,other):
 		else:
 			self.vel = -self.pscreen.constants['elasticity']*velocity_perpendicular + self.pscreen.constants['friction']*velocity_parallel
 		self.pos = self.pos + self.pscreen.constants['displace'] * vector
-#	if other.immobile:
-#		self.pos = self.pos + vector
+	if other.immobile:
+		self.pos = self.pos + vector
 def update_world(self,timestep):
 	""" The part of the update cycle where the various effects of the world act. """
 	self.acc = self.acc + timestep*self.pscreen.constants['gravity']*(v(0,-1))
 	self.acc = self.acc - timestep*self.pscreen.constants['drag']*self.vel
 def update_inertia(self,timestep):
 	""" Update position and velocity in the standard way. """
-	if not self.pscreen.coltree.remove(self): 
-		print("UH OH, {} {}".format(self, len(self.pscreen.coltree)))
-		print(self.pscreen.coltree.statusrep(''))
+	self.pscreen.coltree.remove(self) 
 	self.vel = self.vel + timestep*self.acc
 	self.pos = self.pos + timestep*self.vel
 	self.acc = v(0,0)
@@ -416,7 +406,6 @@ class Spawner(object):
 			self.pscreen.addcomponent(newball)
 
 			self.spawncount = self.spawncount + 1
-			print("spawned a thinger!")
 	def draw(self): 
 		pyglet.gl.glColor4f(0.6,0.0,0.6,0.4)
 		self.shape.draw(self.pos, self.z)
