@@ -32,13 +32,14 @@ class QuadTree(list):
 	TODO: Efficiently reorganize the quadtree when necessary.
 	TODO: Switch from using self[0::3] + self.Items to just using self[0::4]. Thinking that I should just use a get_bucket function which
 	  would also encapsulate the relationship of the quadtree to the space it's in. That's a thing I should really do.
+	TODO: Implement empty Leaf Nodes. right now you have to handle empty nodes everywhere; that is very suboptimal.
 	"""
 	def __init__(self,items=[],center=v(0,0), height=8):
 		self.height = height
 
 		list.__init__(self, [ None, None, None, None ])
 
-		self.xc,self.yc = center.x, center.y
+		self.xc, self.yc = center.x, center.y
 		self.Items = SortSearchList([])
 		# Pass the filling of the tree to the extend method.
 		self.extend(items)
@@ -55,6 +56,13 @@ class QuadTree(list):
 			else: return -1 # Should return Items. or 5. or something.
 		else: return -1
 		# Should return Items or 5 or whatever
+	
+	def do_recursively(self, some_function):
+		some_function(self)
+		if self[0] is not None: some_function(self[0])
+		if self[1] is not None: some_function(self[1])
+		if self[2] is not None: some_function(self[2])
+		if self[3] is not None: some_function(self[3])
 
 	def collisions(self, obj):
 		"""Returns a set of objects with which the passed-in thing is colliding."""
@@ -71,14 +79,11 @@ class QuadTree(list):
 		""" Insert obj into this quadtree. Should throw it into the appropriate 
 		quadrant if necessary, and otherwise throw it into the self.Items bin.
 		"""
-
-		if obj in self.Items: return self.height   ### If the object is in this level, go ahead and return the current height
 		if self.height is 0: self.Items.append(obj) # If you're at the bottom, put it straight into the Items bucket. No deeper.
 		quadrant = self.get_quadrant(obj)
 		if quadrant is -1 or self.height is 0: self.Items.append(obj) # Maybe offload the self.height check into get_quadrant? nah, don't think so
-		else:
-			if self[quadrant] is None: self[quadrant] = QuadTree([obj], obj.pos, height=self.height-1)
-			else: self[quadrant].append(obj)
+		elif self[quadrant] is None: self[quadrant] = QuadTree([obj], obj.pos, height=self.height-1)
+		else: self[quadrant].append(obj)
 
 	def insert(self, item):
 		return self.append(item)
@@ -113,22 +118,20 @@ class QuadTree(list):
 		""" Remove obj from the tree. Returns falsy if the object was not found. 
 
 		In the future, I suppose that it should throw an exception if it tries to remove an object not in the tree.
-		So here's a new thinking: to remove object from the thing, check if it is in this node of the tree.
 		  If object is in this node, return the height, remove the object, and End Operation.
 		  Else, check if object is in the most likely subnode.
 		  Else, check in the other subnodes.
 		TODO: remove empty subtrees. Whoops.
 		"""
 		# If it's in the Items bucket, remove it and return True for successfully removing the object.
-		if obj in self.Items: 
-			self.Items.remove(obj)
-			return True
+		if self.Items.remove(obj): return True
 
-		if self.get_quadrant(obj) == -1: order = (0,1,2,3)
+		if self.get_quadrant(obj) is -1: order = (0,1,2,3)
 		else: order = ((0,1,2,3),(1,0,2,3),(2,3,0,1),(3,2,0,1))[self.get_quadrant(obj)]
 
 		for i in order:
-			if self[i] is not None and self[i].remove(obj): return True
+			if self[i] is not None:
+				self[i].remove(obj)
 
 		return False 
 
@@ -140,17 +143,14 @@ class QuadTree(list):
 			quad = None
 
 	def __contains__(self,item):
-		""" Discover if the tree contains item, in a less lazy way. 
-		
-		TODO: This should probably be changed to be like remove.
-		"""
+		""" Discover if the tree contains item, in a less lazy way. """
 		if item in self.Items: return True
-		if x_min(item) > self.xc:
-			if y_min(item) > self.yc: return (item in self[0]) or (item in self[1]) or (item in self[2]) or (item in self[3])
-			if y_max(item) < self.yc: return (item in self[1]) or (item in self[0]) or (item in self[3]) or (item in self[2])
-		if x_max(item) < self.xc:
-			if y_min(item) > self.yc: return (item in self[2]) or (item in self[3]) or (item in self[0]) or (item in self[1])
-			if y_max(item) < self.yc: return (item in self[3]) or (item in self[2]) or (item in self[1]) or (item in self[0])
+		if self.get_quadrant(item) is -1: order = (0,1,2,3)
+		else: order = ((0,1,2,3),(1,0,2,3),(2,3,0,1),(3,2,0,1))[self.get_quadrant(item)]
+
+		for i in order:
+			if self[i] is not None and item in self[i]: return True
+
 		return False
 
 	def __len__(self):

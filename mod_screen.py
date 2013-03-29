@@ -187,7 +187,8 @@ class TheScreen(object):
 			if thing in self.collision_objects: self.collision_objects.remove(thing)
 			if thing in self.priority: 			self.priority.remove(thing)
 			if thing in self.nonpriority: 		self.nonpriority.remove(thing)
-			print(self.coltree.remove(thing))
+			if not self.coltree.remove(thing): print("There's been a problem. We tried to remove something and it didn't work.")
+			if thing in self.coltree: print("We removed something but it's still in the coltree.")
 			del thing
 
 		for thing in self.components: thing.update(timestep)
