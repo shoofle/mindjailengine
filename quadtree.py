@@ -12,13 +12,25 @@ x_max = lambda o: o.pos.x + o.shape.xbounds[1]
 split_threshhold = 5 # When you bulk-add a bunch of objects, this serves the purpose of saying "hey, if this quadtree's going to have 
 # fewer than this many objects, we might as well just chuck'em all in the Items bucket." I don't even know if this is a good *idea*. 
 # It's not used very much.
+bucket_indices = (0,1,2,3)
+
+def center_from_object(thing):
+	return thing.pos.x, thing.pos.y
+
+def vector_center_of_object(thing):
+	return thing.pos
+
+def center_from_group(things):
+	sampling = random.sample(things, min(len(things), 10))
+	center = sum(map(vector_center_of_object, sampling),v(0,0))/len(sampling)
+	return center.x, center.y
 
 def intersects(me, you):
 	"""Return whether or not me and you are colliding. May very well be overwritten by the caller of the library."""
 	return shapes.intersect(me, you) if me.tangible and you.tangible else False
 
 
-class QuadTree(list):
+class QuadTree(object):
 	"""A QuadTree partitions a planar space into four sections, for a recursive data structure that makes collision detection fast.
 
 	Okay, the low-down is this: we've got four subtrees and an Items bucket. Objects in the northeast, southeast, northwest, and southwest
@@ -34,140 +46,126 @@ class QuadTree(list):
 	  would also encapsulate the relationship of the quadtree to the space it's in. That's a thing I should really do.
 	TODO: Implement empty Leaf Nodes. right now you have to handle empty nodes everywhere; that is very suboptimal.
 	"""
-	def __init__(self,items=[],center=v(0,0), height=8):
+
+	def __init__(self, items=None, center=None, height=8):
+		self.leaf_node = True
 		self.height = height
 
-		list.__init__(self, [ None, None, None, None ])
-
+		if center is None: center = v(0,0)
 		self.xc, self.yc = center.x, center.y
-		self.Items = SortSearchList([])
-		# Pass the filling of the tree to the extend method.
-		self.extend(items)
 
-	def get_quadrant(self, obj):
-		"""Finds which bucket the item should go in - that is, if we added the item to the quadtree, what bucket would it be in."""
+		self.children = []
+		self.contents = SortSearchList([])
+
+		# Pass the filling of the tree to the extend method.
+		if items is not None: self.extend(items)
+
+	def get_bucket_label(self, obj):
+		"""Return the label for the bucket this should go in."""
+		if self.height is 0: return -1
 		if x_min(obj) > self.xc: # If it's east of center
-			if y_min(obj) > self.yc: return 0 # If it's northeast of center
+			if y_min(obj) > self.yc: return 0 # ne of center
 			elif y_max(obj) < self.yc: return 1 # If it's southeast of center
-			else: return -1 # Should return Items. or 5. or something.
+			else: return -1
 		elif x_max(obj) < self.xc: # If it's west of center
 			if y_min(obj) > self.yc: return 2 # If it's northwest of center
 			elif y_max(obj) < self.yc: return 3 # If it's southwest of center
 			else: return -1 # Should return Items. or 5. or something.
 		else: return -1
-		# Should return Items or 5 or whatever
-	
-	def do_recursively(self, some_function):
-		some_function(self)
-		if self[0] is not None: some_function(self[0])
-		if self[1] is not None: some_function(self[1])
-		if self[2] is not None: some_function(self[2])
-		if self[3] is not None: some_function(self[3])
 
-	def collisions(self, obj):
-		"""Returns a set of objects with which the passed-in thing is colliding."""
-		output = self.Items.collisions(obj) # Calls collisions from Items. Here's the problem maybe?
-		if x_min(obj) < self.xc: # This is different from just getting the bucket the item is in. This is actually completely different.
-			if y_min(obj) < self.yc and self[3] is not None: output = output | self[3].collisions(obj)
-			if y_max(obj) > self.yc and self[2] is not None: output = output | self[2].collisions(obj)
-		if x_max(obj) > self.xc:
-			if y_min(obj) < self.yc and self[1] is not None: output = output | self[1].collisions(obj)
-			if y_max(obj) > self.yc and self[0] is not None: output = output | self[0].collisions(obj)
+	def collisions(self, thing):
+		"""Return a set of all the objects in self colliding with thing.
+		
+		TODO: change this to fit with the new system, so... this shouldn't include references to x_min etc."""
+		if self.leaf_node: return set()
+		
+		# Any object could be touching the contents of the current level of the tree.
+		output = self.contents.collisions(thing)
+		# An object would need to satisfy certain constraints to be intersecting the children.
+		# In order to touch an object in the northeast child, its maxima need to be greater than our center.
+		if x_max(thing) > self.xc and y_max(thing) > self.yc: output = output | self.children[0].collisions(thing)
+		if x_max(thing) > self.xc and y_min(thing) < self.yc: output = output | self.children[1].collisions(thing) # And so on.
+		if x_min(thing) < self.xc and y_max(thing) > self.yc: output = output | self.children[2].collisions(thing)
+		if x_min(thing) < self.xc and y_min(thing) < self.yc: output = output | self.children[3].collisions(thing)
 		return output
 
-	def append(self, obj):
-		""" Insert obj into this quadtree. Should throw it into the appropriate 
-		quadrant if necessary, and otherwise throw it into the self.Items bin.
-		"""
-		if self.height is 0: self.Items.append(obj) # If you're at the bottom, put it straight into the Items bucket. No deeper.
-		quadrant = self.get_quadrant(obj)
-		if quadrant is -1 or self.height is 0: self.Items.append(obj) # Maybe offload the self.height check into get_quadrant? nah, don't think so
-		elif self[quadrant] is None: self[quadrant] = QuadTree([obj], obj.pos, height=self.height-1)
-		else: self[quadrant].append(obj)
-
-	def insert(self, item):
-		return self.append(item)
+	def append(self, item):
+		if self.leaf_node:
+			# If this is a leaf node, well, that's not going to stay. First off, we undo that marker.
+			self.leaf_node = False
+			# Now we initialize all of the children, so that they're going to be leaf node quadtrees..
+			self.children = [QuadTree(height = self.height-1) for i in bucket_indices]
+			# Now make sure that the center is marked correctly given that the object we're adding is in the center.
+			self.xc, self.yc = center_from_object(item)
+			# Now we're not a leaf node, so regular append logic will apply.
+			self.append(item)
+		else:
+			bucket_label = self.get_bucket_label(item)
+			if self.height is 0 or bucket_label is -1:
+				self.contents.append(item)
+			else:
+				self.children[bucket_label].append(item)
 
 	def extend(self, items):
-		""" Add a large number of objects at once to the quadtree.
-
-		Actually, the problem of where to locate the centers for the new quadrants 
-		is quite a bit of a problem. Not really sure how I'm going to do that! The 
-		solution I came up with for multiple insertions (at creation time) was to
-		sample a random third of the points and average their positions.
-		"""
-		if self.height == 0 or len(self.Items) + len(items) < split_threshhold: # Not sure if I want split_threshhold.
-			self.Items.extend(items)
+		# Seriously, who extends by an empty list? Dick.
+		if len(items) is 0: 
 			return
-		appendage = [ [], [], [], [] ]
-		for thing in items:
-			quadrant = self.get_quadrant(thing)
-			if quadrant is -1 or self.height is 0: self.Items.append(thing)
-			else: appendage[quadrant].append(thing)
-		for i, quadrantlist in enumerate(appendage):
-			if len(quadrantlist) == 0: continue
-			if self[i] is None:
-				qcenter = v(0,0)
-				for thing in random.sample(quadrantlist,min(10,len(quadrantlist))):
-					qcenter = qcenter + thing.pos/min(10,len(quadrantlist))
-				self[i] = QuadTree(quadrantlist, qcenter, height = self.height-1)
-			else:
-				self[i].extend(quadrantlist)
+		# If only one object is being added, append it instead. Why are you using extend? Dolt.
+		if len(items) is 1:
+			self.append(items[0])
+			return
+		if self.leaf_node:
+			# First things first, this is no longer a leaf node.
+			self.leaf_node = False
+			# Second things second, we're going to initialize the children.
+			self.children = [QuadTree(height = self.height-1) for i in bucket_indices]
+			# Third things third, we need to figure out where to locate our center. I'm not sure how this should be done!
+			self.xc, self.yc = center_from_group(items)
+			# Now just extend as normal.
+			self.extend(items)
+		else:
+			# First off, let's get the ones that should go in the contents bucket.
+			self.contents.extend([x for x in items if self.get_bucket_label(x) is -1])
+			# For each bucket, extend it by those objects which should go in that bucket.
+			for i in bucket_indices: self.children[i].extend([x for x in items if self.get_bucket_label(x) is i])
 
-	def remove(self, obj):
-		""" Remove obj from the tree. Returns falsy if the object was not found. 
+	def remove(self, item):
+		"""Removes item from self. Returns False if the item isn't here, True if it was removed.
 
-		In the future, I suppose that it should throw an exception if it tries to remove an object not in the tree.
-		  If object is in this node, return the height, remove the object, and End Operation.
-		  Else, check if object is in the most likely subnode.
-		  Else, check in the other subnodes.
-		TODO: remove empty subtrees. Whoops.
-		"""
-		# If it's in the Items bucket, remove it and return True for successfully removing the object.
-		if self.Items.remove(obj): return True
+		TODO: check children in order."""
+		if self.leaf_node: return False
 
-		if self.get_quadrant(obj) is -1: order = (0,1,2,3)
-		else: order = ((0,1,2,3),(1,0,2,3),(2,3,0,1),(3,2,0,1))[self.get_quadrant(obj)]
-
-		for i in order:
-			if self[i] is not None:
-				self[i].remove(obj)
-
-		return False 
-
-	def clear(self):
-		""" Not sure if this actually needs to go through and delete everything, but I figure I might as well. """
-		del self.Items
-		for quad in self:
-			quad.clear()
-			quad = None
-
-	def __contains__(self,item):
-		""" Discover if the tree contains item, in a less lazy way. """
-		if item in self.Items: return True
-		if self.get_quadrant(item) is -1: order = (0,1,2,3)
-		else: order = ((0,1,2,3),(1,0,2,3),(2,3,0,1),(3,2,0,1))[self.get_quadrant(item)]
-
-		for i in order:
-			if self[i] is not None and item in self[i]: return True
-
+		if item in self.contents: return self.contents.remove(item)
+		# Might be worth it to optimize this to check the most likely quadtrees first.
+		for child in self.children:
+			if child.remove(item): return True
 		return False
 
+	def __contains__(self, item):
+		"""Checks if item is in self.
+
+		TODO: check children in order."""
+		if self.leaf_node: return False
+
+		if item in self.contents: return True
+		# Might be worth it to optimize this to check the most likely quadtrees first.
+		for child in self.children:
+			if item in child: return True
+	
 	def __len__(self):
-		return len(self.Items) + sum(map(lambda x: len(self[x]) if self[x] is not None else 0, range(4))) #ugh.
+		if self.leaf_node: return 0
 
-	def statusrep(self, indent):
-		output = indent + " count: " + str(len(self)) + "   here: " +  str(len(self.Items)) 
-		if self[0] is not None: output += "\n" + self[0].statusrep(indent + "-|")
-		if self[1] is not None: output += "\n" + self[1].statusrep(indent + "-|")
-		if self[2] is not None: output += "\n" + self[2].statusrep(indent + "-|")
-		if self[3] is not None: output += "\n" + self[3].statusrep(indent + "-|")
-		return output
-
-
-
-
-###
+		return len(self.contents) + sum(map(len, self.children))
+	
+	def status_rep(self, indent=''):
+		if self.leaf_node: return []
+		output = []
+		output.append(indent + '{0} total, {1} here'.format(len(self), len(self.contents)))
+		for child in self.children:
+			output.extend(child.status_rep(indent + '--'))
+		if indent is '': return '\n'.join(output)
+		else: return output
+	
 # Linear Sort Search (on the x-axis)
 ###
 class SortSearchList(list):
@@ -184,8 +182,9 @@ class SortSearchList(list):
 	It's a big improvement over a brute-force search, but it's not as good as a quadtree (I think). However, it produced
 	  really noticeable improvements when I used it as the Item bucket for a quadtree. So that's why it's here.
 	"""
-	def __init__(self, input_list=[]):
+	def __init__(self, input_list=None):
 		list.__init__(self)
+		if input_list is None: input_list = []
 		self.extend(input_list)
 
 	def min_key(self, thing):

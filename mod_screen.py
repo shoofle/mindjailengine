@@ -126,7 +126,6 @@ class TheScreen(object):
 
 		self.coltree.extend(self.collision_objects)
 
-		print(self.coltree.statusrep(''))
 		self.constants = {'drag':10, 'gravity':5000, 'elasticity':0.7, 'friction':0.9, 'displace':0.5}
 
 	def batch_addcomponent(self, thing, physics=True, collisions=None, static=False, priority=False, listeners=False):
@@ -187,8 +186,10 @@ class TheScreen(object):
 			if thing in self.collision_objects: self.collision_objects.remove(thing)
 			if thing in self.priority: 			self.priority.remove(thing)
 			if thing in self.nonpriority: 		self.nonpriority.remove(thing)
-			if not self.coltree.remove(thing): print("There's been a problem. We tried to remove something and it didn't work.")
-			if thing in self.coltree: print("We removed something but it's still in the coltree.")
+			while thing in self.coltree:
+				self.coltree.remove(thing)
+#			if not self.coltree.remove(thing): print("There's been a problem. We tried to remove something and it didn't work.")
+#			if thing in self.coltree: print("We removed something but it's still in the coltree.")
 			del thing
 
 		for thing in self.components: thing.update(timestep)
@@ -206,7 +207,7 @@ class TheScreen(object):
 	def on_key_press(self, symbol, modifiers):
 		if symbol == key.P: # If they pressed p, we want to pause.
 			self.pwin.thescreen = PauseScreen(self.pwin, self)
-		if symbol == key.R: print(self.coltree.statusrep(''))
+		if symbol == key.R: print(self.coltree.status_rep(''))
 		for thing in self.listeners:
 			thing.on_key_press(symbol, modifiers)
 	def on_key_release(self, symbol, modifiers):
@@ -323,7 +324,8 @@ def update_world(self,timestep):
 	self.acc = self.acc - timestep*self.pscreen.constants['drag']*self.vel
 def update_inertia(self,timestep):
 	""" Update position and velocity in the standard way. """
-	self.pscreen.coltree.remove(self) 
+	while self in self.pscreen.coltree:
+		self.pscreen.coltree.remove(self) 
 	self.vel = self.vel + timestep*self.acc
 	self.pos = self.pos + timestep*self.vel
 	self.acc = v(0,0)
