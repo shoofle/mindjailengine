@@ -97,6 +97,7 @@ class TheScreen(object):
 		self.batch_addcomponent( FreeBall(self, location = v(0,-50)) )
 		self.batch_addcomponent( FreeBall(self, location = v(-100,0)) )
 		self.batch_addcomponent( FreeBall(self, location = v(100,0)) )
+		self.batch_addcomponent( FreeBall(self, location = v(0, 1700), rad=80) )
 
 		self.batch_addcomponent( Spawner(self, location = v(-500, 1500), rad=250), physics=False, collisions=False)
 		self.batch_addcomponent( Spawner(self, location = v(500, 1500), rad=250), physics=False, collisions=False)
@@ -369,10 +370,10 @@ def update_inertia(self,timestep):
 
 class FreeBall(object):
 	""" A basic ball object. It's a circle! Woo."""
-	def __init__(self, pscreen, location=v(0,0), *args, **kwargs):
+	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=20)
+		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
 	def collide(self,other):
 		phys_collide(self,other)
 	def update(self,timestep):
@@ -425,7 +426,7 @@ class Spawner(object):
 
 		self.spawn_count = 0
 		self.spawn_count_max = 20 # Maximum number that will spawn before the spawner dies.
-		self.spawn_chance = 0.05 # chance of spawning, per frame.
+		self.spawn_chance = 0.01 # chance of spawning, per frame.
 		self.maxvelocity = 1000
 	def collide(self,other): pass
 	def update(self, timestep):

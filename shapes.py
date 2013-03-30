@@ -52,6 +52,7 @@ def linecircle(lineobj, circleobj):
 
 def circlecircle(me,you):
 	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting."""
+	# TODO: implement circle/circle collision where one or both of them are extruded circles, to make sure that it's happening effectively.
 	separation = me.pos - you.pos # My distance from you.
 	if separation.x == 0 and separation.y == 0:
 		unit_separation = v(0,-1)
