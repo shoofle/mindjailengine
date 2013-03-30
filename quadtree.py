@@ -135,13 +135,17 @@ class QuadTree(object):
 
 		if item in self.contents and self.contents.remove(item):
 			# TODO: change this, and the other instance of this below, because len() might be slow?
-			if len(self) is 0: self.leaf_node = True
+			if len(self) is 0: 
+				self.leaf_node = True
+				self.children = []
 			return True
 
 		# Might be worth it to optimize this to check the most likely quadtrees first.
 		for child in self.children:
 			if child.remove(item): 
-				if len(self) is 0: self.leaf_node = True
+				if len(self) is 0: 
+					self.leaf_node = True
+					self.children = []
 				return True
 		return False
 
@@ -206,9 +210,6 @@ class SortSearchList(list):
 		# Inserts the item into the minimum and maximum lists, keeping them sorted appropriately.
 		bisect.insort(self.minimums, item, key=self.min_key, testval=self.min_key(item))
 		bisect.insort(self.maximums, item, key=self.max_key, testval=self.max_key(item))
-
-	def insert(self, item):
-		self.append(item)
 
 	def remove(self, item):
 		if item in self:

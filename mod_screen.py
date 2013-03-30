@@ -16,7 +16,7 @@ SPAWNCHANCE = 0.01
 MAXSIZE = 200
 
 def intersecttest(a, b):
-	if a.tangible and b.tangible:
+	if a.test_for_collision and b.test_for_collision:
 		return shapes.intersect(a,b)
 quadtree.intersects = intersecttest
 #quadtree.sortsearchsolution.intersects = intersecttest
@@ -274,15 +274,18 @@ def initialize_habitats(self, pscreen):
 	"""
 	self.pscreen = pscreen
 
-def initialize_states(self, dead=False, tangible=True, immobile=False):
+def initialize_states(self, dead=False, tangible=True, immobile=False, test_for_collision=True):
 	""" Initialize the state variables: whether the object is 
 	dead - if the 'dead' flag is set, then it will be removed next chance we get.
-	tangible - if the 'tangible' value is nonzero and matches another object, then they can collide.
+	tangible - if the 'tangible' value is truthy, it will physics-collide with other objects.
+		not yet implemented: if tangible matches another object, we can collide with that object.
 	immobile - if the 'immobile' flag is set, then the object cannot be moved.
+	test_for_collision - if true, then this object should be tested for whether it collides.
 	"""
 	self.dead = dead
 	self.tangible = tangible
 	self.immobile = immobile
+	self.test_for_collision = test_for_collision
 def initialize_attributes(self, pos=v(0,0), vel=v(0,0), acc=v(0,0), r=20, shape=None, numpoints=60, **kwargs):
 	""" Initialize various attributes of the physics-ness of the object.
 
@@ -304,6 +307,7 @@ def phys_collide(self,other):
 	""" Standard collision response. Reflect our velocity along the collision line thing.
 	If they're immobile, move us out.
 	"""
+	if not other.tangible: return
 	vector = shapes.intersect(self, other)
 	if vector is None: return None
 	else:
@@ -337,7 +341,7 @@ class FreeBall(object):
 	""" A basic ball object. It's a circle! Woo."""
 	def __init__(self, pscreen, location=v(0,0), *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=True, immobile=False)
+		initialize_states(self)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=20)
 	def collide(self,other):
 		phys_collide(self,other)
@@ -349,7 +353,7 @@ class FreeBall(object):
 class ObstacleBall(object):
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=True, immobile=True)
+		initialize_states(self, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
@@ -357,7 +361,7 @@ class ObstacleBall(object):
 class ObstacleLine(object):
 	def __init__(self, pscreen, location=v(0,0), endpoint=v(0,1), thick = 0,*args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=True, immobile=True)
+		initialize_states(self, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0))
 		self.start = self.pos
 		self.end = endpoint
@@ -368,7 +372,7 @@ class ObstacleLine(object):
 class InvertBall(object):
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=True, immobile=True)
+		initialize_states(self, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
 		self.shape.invert = 1
 	def update(self, timestep): pass
@@ -384,7 +388,7 @@ class InvertBall(object):
 class Spawner(object):
 	def __init__(self, pscreen, location=v(0,0), rad=100, z=0.25, *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=False, immobile=True)
+		initialize_states(self, test_for_collision=False)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
 		self.z = z
 		self.shape.drawtype = "fill"
@@ -415,7 +419,7 @@ class EnemyBall(object):
 	""" An enemy ball, which can be destroyed by bullets. """
 	def __init__(self, pscreen, location=v(0,0), rad=30, *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=True, immobile=False)
+		initialize_states(self)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
 		self.shape.drawtype = "fill"
 		self.enemy = True
@@ -440,7 +444,7 @@ class EnemyBall(object):
 class PlayerBall(object):
 	def __init__(self,pscreen, location=v(0,0), *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=True, immobile=False)
+		initialize_states(self)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=15)
 		self.z=0
 
@@ -456,17 +460,26 @@ class PlayerBall(object):
 
 		self.thrust = 7500
 		self.thrustdir = v(0,0)
-		self.shooting = False
 		self.player = True
 
 		self.shape2 = shapes.Circle(10, rad=self.rad/4, drawtype="fill", invert=0)
-	def firebullet(self):
+
+	def fire_bullet(self):
 		newbullet = BulletBall(self.pscreen, self, location=self.pos)
 		if abs(self.vel) == 0:
-			newbullet.vel = v(0, 500)
+			newbullet.vel = v(0, 800)
 		else:
-			newbullet.vel = self.vel + 500*self.vel.unit()
+			newbullet.vel = self.vel + 800*self.vel.unit()
 		self.pscreen.addcomponent(newbullet)
+
+	def fire_bomb(self):
+		newbomb = BombBall(self.pscreen, self, location=self.pos)
+		if abs(self.vel) == 0:
+			newbomb.vel = v(0, 200)
+		else:
+			newbomb.vel = self.vel + 200*self.vel.unit()
+		self.pscreen.addcomponent(newbomb)
+
 	def gotkill(self, other):
 		self.pscreen.killcountincrease()
 
@@ -491,7 +504,8 @@ class PlayerBall(object):
 		if symbol == key.DOWN: self.thrustdir = self.thrustdir + v(0,-1)
 		if symbol == key.LEFT: self.thrustdir = self.thrustdir + v(-1,0)
 		if symbol == key.RIGHT: self.thrustdir = self.thrustdir + v(1,0)
-		if symbol == key.Z: self.firebullet()
+		if symbol == key.Z: self.fire_bullet()
+		if symbol == key.B: self.fire_bomb()
 	def on_key_release(self, symbol, modifiers):
 		if symbol == key.UP: self.thrustdir = self.thrustdir - v(0,2)
 		if symbol == key.DOWN: self.thrustdir = self.thrustdir - v(0,-1)
@@ -504,11 +518,11 @@ class BulletBall(object):
 	""" A projectile object. It's a circle! Woo."""
 	def __init__(self, pscreen, parent,location=v(0,0), *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, dead=False, tangible=True, immobile=False)
+		initialize_states(self)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=5)
 		self.parent = parent
 		self.bullet = True
-		self.timetolive = 4
+		self.time_to_live = 4
 		self.time=0
 	def collide(self,other):
 		if hasattr(other,"player"):
@@ -521,12 +535,55 @@ class BulletBall(object):
 		phys_collide(self,other)
 	def update(self,timestep):
 		self.time += timestep
-		if self.time>self.timetolive:
+		if self.time>self.time_to_live:
 			self.dead = True
 		update_world(self,timestep)
 		update_inertia(self,timestep)
 	def draw(self):
-		pyglet.gl.glColor3f(1.0,0.0,0.0)
+		pyglet.gl.glColor3f(1.0,0.2,0.5)
+		self.shape.draw(self.pos)
+class BombBall(object):
+	""" A bomb, which explodes after a certain amount of time to throw things flying. """
+	def __init__(self, pscreen, parent, location=None):
+		initialize_habitats(self, pscreen)
+		initialize_states(self)
+		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=8)
+		self.parent = parent
+		self.time_to_live=2
+		self.time=0
+	def collide(self, other): phys_collide(self,other)
+	def update(self,timestep):
+		self.time += timestep
+		if self.time > self.time_to_live: 
+			self.pscreen.addcomponent( BombExplosion(self.pscreen, self, location=self.pos) )
+			self.dead = True
+		update_world(self,timestep)
+		update_inertia(self,timestep)
+	def draw(self):
+		# Color goes from black to red as it approaches exploding.
+		pyglet.gl.glColor3f((self.time/self.time_to_live), 0.0, 0.0)
+		self.shape.draw(self.pos)
+class BombExplosion(object):
+	""" The explosion for the bomb. This is a non-tangible object which needs to collide with things. """
+	def __init__(self, pscreen, parent, location=None):
+		initialize_habitats(self, pscreen)
+		initialize_states(self, tangible=False, immobile=True)
+		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=100)
+		self.shape.drawtype = "fill"
+
+		self.parent = parent
+		self.time_to_live=0.5
+		self.time=0
+	def collide(self, other):
+		other.acc = 100*(1-self.time/self.time_to_live)*(other.pos - self.pos)
+	def update(self, timestep):
+		self.time += timestep
+		if self.time > self.time_to_live:
+			self.dead = True
+		update_world(self, timestep)
+	def draw(self):
+		# Color fades to something..
+		pyglet.gl.glColor4f(self.time/self.time_to_live, 1.0 - self.time/self.time_to_live, 1.0 - self.time/self.time_to_live, 1.0 - self.time/self.time_to_live)
 		self.shape.draw(self.pos)
 class CameraFollower(object):
 	def __init__(self, pscreen, latch=None, spring=30, damping=2):
