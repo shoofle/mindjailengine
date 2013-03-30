@@ -12,9 +12,6 @@ from vectors import v
 
 import quadtree
 
-SPAWNCHANCE = 0.01
-MAXSIZE = 200
-
 def intersecttest(a, b):
 	if a.test_for_collision and b.test_for_collision:
 		return shapes.intersect(a,b)
@@ -84,6 +81,8 @@ class TheScreen(object):
 		
 		self.physics_objects = []
 		self.collision_objects = []
+		self.static_objects = []
+		self.nonstatic_objects = []
 		self.priority = []
 		self.nonpriority = []
 		self.listeners = []
@@ -128,7 +127,7 @@ class TheScreen(object):
 
 		self.constants = {'drag':10, 'gravity':5000, 'elasticity':0.7, 'friction':0.9, 'displace':0.5}
 
-	def batch_addcomponent(self, thing, physics=True, collisions=None, static=False, priority=False, listeners=False):
+	def batch_addcomponent(self, thing, physics=True, collisions=None, static=None, priority=False, listeners=False):
 		"""Add a number of components to the lists of objects with various qualities, but do not yet add them to the quadtree.
 
 		This method is supposed to be used to add a large number of objects at once - and then followed up by a call that adds
@@ -140,10 +139,14 @@ class TheScreen(object):
 		listeners: if True, the object will receive keyboard and mouse events.
 		"""
 		if collisions is None: collisions = physics
+		if static is None: static = not physics
 		try:
 			self.components.append(thing)
 			if physics: self.physics_objects.append(thing)
-			if collisions: self.collision_objects.append(thing)
+			if collisions: 
+				self.collision_objects.append(thing)
+				if static: self.static_objects.append(thing)
+				else: self.nonstatic_objects.append(thing)
 			if priority: self.priority.append(thing) # Objects which have priority drawing (these are drawn first).
 			else:
 				self.nonpriority.append(thing)	# Objects which do not have priority drawing.
@@ -184,6 +187,8 @@ class TheScreen(object):
 			self.components.remove(thing)
 			if thing in self.physics_objects: 	self.physics_objects.remove(thing)
 			if thing in self.collision_objects: self.collision_objects.remove(thing)
+			if thing in self.static_objects: 	self.static_objects.remove(thing)
+			if thing in self.nonstatic_objects: self.nonstatic_objects.remove(thing)
 			if thing in self.priority: 			self.priority.remove(thing)
 			if thing in self.nonpriority: 		self.nonpriority.remove(thing)
 			self.coltree.remove(thing)
@@ -196,6 +201,11 @@ class TheScreen(object):
 		# And now they're updated, we do collision detection.
 		colset = set()
 		
+		# There's something very fishy going on.
+		# TODO: This isn't actually checking for collisions robustly.
+		# Given that static objects never need to collide with one another, testing for collisions from nonstatics to everything
+		# should produce the same output as testing collisions from everything to everything. However, when we tried that, it produced
+		# inconsistent collision results between static and nonstatic objects.
 		for obj in self.collision_objects:
 			colset = self.coltree.collisions(obj) or set()
 			for col in colset:
@@ -225,7 +235,6 @@ class TheScreen(object):
 class PauseScreen(object): 
 	""" A game screen thingy for when the game is paused. """
 	def __init__(self, pwin, childscreen):
-		self.text = "THE GAME! IT'S PAUSED!\nPress 'p' to unpause.\n%d\tKills: %d"
 		self.pwin = pwin
 		self.childscreen = childscreen # The screen which paused us. pressing P will return us to this screen.
 
@@ -233,12 +242,30 @@ class PauseScreen(object):
 		self.preptoexit = False
 		self.pausetime = 0
 
-		self.pausetext = text.Label((self.text) % (0,self.childscreen.killcount), 'Arial', 24 ,	color = (100, 100, 100, 127),\
-				x = self.pwin.width/2 , y = self.pwin.height/2 ,\
-				anchor_x="center",anchor_y="center",width=3*self.pwin.width/4,height=3*self.pwin.height/4, multiline=1)
+		self.top_text = "THE GAME! IT'S PAUSED!\nPress 'p' to unpause.\nTime: {0}\t\tKills: {1}"
+		self.bottom_text = "Don't forget: \nz to fire bullets! \nb to fire bombs! \nwasd to move! \nesc to exit!"
+
+		self.top_text_label = text.Label(
+				self.top_text.format(0,self.childscreen.killcount), \
+				'Arial', 24, \
+				color = (0, 0, 0, 127),\
+				x = self.pwin.width/2, y = self.pwin.height/2 ,\
+				anchor_x="center", anchor_y="center", \
+				width=3*self.pwin.width/4, height=3*self.pwin.height/4, \
+				multiline=1 \
+			)
+		self.bottom_text_label = text.Label( \
+				self.bottom_text, \
+				'Arial', 24, \
+				color = (25, 25, 25, 127), \
+				x = self.pwin.width/2, y = self.pwin.height, \
+				anchor_x="center", anchor_y="center", \
+				width=3*self.pwin.width/4, height=3*self.pwin.height/4, \
+				multiline=1 \
+			)
 	def update(self, timestep):
 		self.pausetime += timestep
-		self.pausetext.text = self.text % (self.pausetime, self.childscreen.killcount)
+		self.top_text_label.text = self.top_text.format(int(self.pausetime), self.childscreen.killcount)
 		if self.preptoexit and self.pausetime > 1:
 			if not self.pdep:
 				self.pausetime = 0
@@ -250,7 +277,8 @@ class PauseScreen(object):
 			self.preptoexit = True
 	def draw(self):
 		self.childscreen.draw()
-		self.pausetext.draw()
+		self.top_text_label.draw()
+		self.bottom_text_label.draw()
 	def delete(self):
 		del self
 
@@ -282,6 +310,7 @@ def initialize_states(self, dead=False, tangible=True, immobile=False, test_for_
 	immobile - if the 'immobile' flag is set, then the object cannot be moved.
 	test_for_collision - if true, then this object should be tested for whether it collides.
 	"""
+	# TODO: These duplicate the functionality of the tests in addcomponent.
 	self.dead = dead
 	self.tangible = tangible
 	self.immobile = immobile
@@ -289,6 +318,7 @@ def initialize_states(self, dead=False, tangible=True, immobile=False, test_for_
 def initialize_attributes(self, pos=v(0,0), vel=v(0,0), acc=v(0,0), r=20, shape=None, numpoints=60, **kwargs):
 	""" Initialize various attributes of the physics-ness of the object.
 
+	This is like initializing a RigidBody component.
 	pos - starting location, obviously.
 	vel - starting velocity.
 	acc - starting acceleration. Don't have mass yet. When we have mass, this'll be starting force.
@@ -393,13 +423,14 @@ class Spawner(object):
 		self.z = z
 		self.shape.drawtype = "fill"
 
-		self.spawncount = 0
-		self.spawnmax = 10
+		self.spawn_count = 0
+		self.spawn_count_max = 20 # Maximum number that will spawn before the spawner dies.
+		self.spawn_chance = 0.05 # chance of spawning, per frame.
 		self.maxvelocity = 1000
 	def collide(self,other): pass
 	def update(self, timestep):
-		if self.spawncount > self.spawnmax: return None
-		if random.random() < SPAWNCHANCE:
+		if self.spawn_count > self.spawn_count_max: return None
+		if random.random() < self.spawn_chance:
 			r = random.random()*self.rad
 			angle = random.random()*2*math.pi
 			position = self.pos + v(r*math.cos(angle), r*math.sin(angle))
@@ -410,7 +441,7 @@ class Spawner(object):
 
 			self.pscreen.addcomponent(newball)
 
-			self.spawncount = self.spawncount + 1
+			self.spawn_count = self.spawn_count + 1
 	def draw(self): 
 		pyglet.gl.glColor4f(0.6,0.0,0.6,0.4)
 		self.shape.draw(self.pos, self.z)
@@ -494,11 +525,11 @@ class PlayerBall(object):
 
 		self.labelthing.text = self.templatetext % (self.pos.x, self.pos.y, self.ftext)
 	def draw(self):
+		self.labelthing.draw()
 		pyglet.gl.glColor3f(0.0,0.6,0.0)
 		self.shape.draw(self.pos)
 		pyglet.gl.glColor3f(0.0,0.0,1.0)
 		self.shape2.draw(self.pos + self.vel.unit()*(self.shape.rad - self.shape2.rad/2))
-		self.labelthing.draw()
 	def on_key_press(self, symbol, modifiers):
 		if symbol == key.UP: self.thrustdir = self.thrustdir + v(0,2)
 		if symbol == key.DOWN: self.thrustdir = self.thrustdir + v(0,-1)
@@ -555,7 +586,7 @@ class BombBall(object):
 	def update(self,timestep):
 		self.time += timestep
 		if self.time > self.time_to_live: 
-			self.pscreen.addcomponent( BombExplosion(self.pscreen, self, location=self.pos) )
+			self.pscreen.addcomponent( BombExplosion(self.pscreen, self, location=self.pos), static=True )
 			self.dead = True
 		update_world(self,timestep)
 		update_inertia(self,timestep)
@@ -583,7 +614,8 @@ class BombExplosion(object):
 		update_world(self, timestep)
 	def draw(self):
 		# Color fades to something..
-		pyglet.gl.glColor4f(self.time/self.time_to_live, 1.0 - self.time/self.time_to_live, 1.0 - self.time/self.time_to_live, 1.0 - self.time/self.time_to_live)
+		# Should start as red, then face to black/grey.
+		pyglet.gl.glColor4f(1.0-self.time/self.time_to_live, 0*self.time/self.time_to_live, 0*self.time/self.time_to_live, 1.0-self.time/self.time_to_live)
 		self.shape.draw(self.pos)
 class CameraFollower(object):
 	def __init__(self, pscreen, latch=None, spring=30, damping=2):
