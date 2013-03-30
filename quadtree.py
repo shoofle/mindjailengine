@@ -17,12 +17,10 @@ bucket_indices = (0,1,2,3)
 def center_from_object(thing):
 	return thing.pos.x, thing.pos.y
 
-def vector_center_of_object(thing):
-	return thing.pos
-
 def center_from_group(things):
 	sampling = random.sample(things, min(len(things), 10))
-	center = sum(map(vector_center_of_object, sampling),v(0,0))/len(sampling)
+	# Average their positions based on their pos attributes.
+	center = sum(map(lambda x: x.pos, sampling),v(0,0))/len(sampling)
 	return center.x, center.y
 
 def intersects(me, you):
@@ -130,15 +128,21 @@ class QuadTree(object):
 			for i in bucket_indices: self.children[i].extend([x for x in items if self.get_bucket_label(x) is i])
 
 	def remove(self, item):
-		"""Removes item from self. Returns False if the item isn't here, True if it was removed.
-
-		TODO: check children in order."""
+		"""Removes item from self. Returns False if the item isn't here, True if it was removed."""
+		# TODO: check child nodes in order.
+		# TODO: remove empty nodes.
 		if self.leaf_node: return False
 
-		if item in self.contents: return self.contents.remove(item)
+		if item in self.contents and self.contents.remove(item):
+			# TODO: change this, and the other instance of this below, because len() might be slow?
+			if len(self) is 0: self.leaf_node = True
+			return True
+
 		# Might be worth it to optimize this to check the most likely quadtrees first.
 		for child in self.children:
-			if child.remove(item): return True
+			if child.remove(item): 
+				if len(self) is 0: self.leaf_node = True
+				return True
 		return False
 
 	def __contains__(self, item):
