@@ -186,8 +186,7 @@ class TheScreen(object):
 			if thing in self.collision_objects: self.collision_objects.remove(thing)
 			if thing in self.priority: 			self.priority.remove(thing)
 			if thing in self.nonpriority: 		self.nonpriority.remove(thing)
-			while thing in self.coltree:
-				self.coltree.remove(thing)
+			self.coltree.remove(thing)
 #			if not self.coltree.remove(thing): print("There's been a problem. We tried to remove something and it didn't work.")
 #			if thing in self.coltree: print("We removed something but it's still in the coltree.")
 			del thing
@@ -234,7 +233,7 @@ class PauseScreen(object):
 		self.preptoexit = False
 		self.pausetime = 0
 
-		self.pausetext = text.Label((self.text) % (0,self.childscreen.killcount), 'Arial', 24 ,	color = (127, 127, 127, 127),\
+		self.pausetext = text.Label((self.text) % (0,self.childscreen.killcount), 'Arial', 24 ,	color = (100, 100, 100, 127),\
 				x = self.pwin.width/2 , y = self.pwin.height/2 ,\
 				anchor_x="center",anchor_y="center",width=3*self.pwin.width/4,height=3*self.pwin.height/4, multiline=1)
 	def update(self, timestep):
@@ -324,8 +323,7 @@ def update_world(self,timestep):
 	self.acc = self.acc - timestep*self.pscreen.constants['drag']*self.vel
 def update_inertia(self,timestep):
 	""" Update position and velocity in the standard way. """
-	while self in self.pscreen.coltree:
-		self.pscreen.coltree.remove(self) 
+	self.pscreen.coltree.remove(self) 
 	self.vel = self.vel + timestep*self.acc
 	self.pos = self.pos + timestep*self.vel
 	self.acc = v(0,0)
@@ -443,14 +441,18 @@ class PlayerBall(object):
 	def __init__(self,pscreen, location=v(0,0), *args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, dead=False, tangible=True, immobile=False)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=12)
+		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=15)
 		self.z=0
 
 		self.templatetext = "Our hero, L&G!:\n%f\t%f\n%s"
 		self.ftext = "huh?"
-		self.labelthing = text.Label((self.templatetext) % (0, 0, self.ftext) , 'Arial', 12, \
-				x = 3*self.pscreen.pwin.width/4, y = self.pscreen.pwin.height/4, anchor_x = "left" , anchor_y = "top" , \
-				width = self.pscreen.pwin.width/4 , height = self.pscreen.pwin.height/4 , multiline = 1 )
+		self.labelthing = text.Label( \
+				(self.templatetext) % (0, 0, self.ftext) , \
+				'Arial', 12, \
+				x = 3*self.pscreen.pwin.width/4, y = 1*self.pscreen.pwin.height/4, \
+				anchor_x = "left" , anchor_y = "top" , \
+				width = self.pscreen.pwin.width/4 , height = self.pscreen.pwin.height/4 , multiline = 1 \
+			)
 
 		self.thrust = 7500
 		self.thrustdir = v(0,0)
