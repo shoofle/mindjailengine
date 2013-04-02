@@ -50,7 +50,7 @@ class GameWindow(window.Window):
 		self.runtime = 0
 		self.numsteps = 0
 		self.avefps = 0
-		self.decay = 0.3
+		self.decay = 0.6
 
 		# List of screens to prepare.
 		self.thescreen = mod_screen.TheScreen(self)
