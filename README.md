@@ -11,7 +11,7 @@ In order to use this, you'll need python (2.6, I think? 2.7? Unfortunately, it's
 
 Probably the coolest single _part_ of this endeavor is my (hand-crafted!) QuadTree for collision detection. Of course, hand-crafted means it's far from sterling quality, but hey, it's sped up my game. The basic idea of a quadtree is to recursively subdivide the world into quadrants, so that you know that an object in one quadrant can't touch objects in another. There are some issues, and I've implemented some... unusual solutions, but it's all good.
 
-Of mild interest is one of those solutions - before I took the plunge and coded up a quadtree, I made what I've called a sort-search list. It keeps track of two copies of a list of objects, sorted by their extents on the x-axis - ascending by minima and descending by maxima. It makes for a neat trick to massively cut down on time for finding collisions, but only if objects are well-distributed along the x-axis.
+The sort-search list is a mildly interesting list which demonstrates the folly of human hubris; do not trust it. It is broken. I feel betrayed.
 
 And before you ask, yes, I have done some tests, and both of these have noticeably improved my runtimes over a brute-force solution :)
 
