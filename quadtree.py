@@ -18,14 +18,15 @@ def center_from_object(thing):
 	return thing.pos.x, thing.pos.y
 
 def center_from_group(things):
-	sampling = random.sample(things, min(len(things), 10))
+	#sampling = random.sample(things, min(len(things), 10))
 	# Average their positions based on their pos attributes.
-	center = sum(map(lambda x: x.pos, sampling),v(0,0))/len(sampling)
+	center = sum(map(lambda x: x.pos, things),v(0,0))/len(things)
 	return center.x, center.y
 
-def intersects(me, you):
+def intersects(a, b):
 	"""Return whether or not me and you are colliding. May very well be overwritten by the caller of the library."""
-	return shapes.intersect(me, you) if me.tangible and you.tangible else False
+	if a.test_for_collision and b.test_for_collision:
+		return shapes.intersect(a,b)
 
 
 class QuadTree(object):
@@ -53,7 +54,7 @@ class QuadTree(object):
 		self.xc, self.yc = center.x, center.y
 
 		self.children = []
-		self.contents = SortSearchList([])
+		self.contents = SortSearchList()
 
 		# Pass the filling of the tree to the extend method.
 		if items is not None: self.extend(items)
@@ -133,7 +134,8 @@ class QuadTree(object):
 		# TODO: remove empty nodes.
 		if self.leaf_node: return False
 
-		if item in self.contents and self.contents.remove(item):
+		if item in self.contents:
+			self.contents.remove(item)
 			# TODO: change this, and the other instance of this below, because len() might be slow?
 			if len(self) is 0: 
 				self.leaf_node = True
@@ -163,7 +165,7 @@ class QuadTree(object):
 	def __len__(self):
 		if self.leaf_node: return 0
 
-		return len(self.contents) + sum(map(len, self.children))
+		return len(self.contents) + sum(len(tree) for tree in self.children)
 	
 	def status_rep(self, indent=''):
 		if self.leaf_node: return []
@@ -174,6 +176,15 @@ class QuadTree(object):
 		if indent is '': return '\n'.join(output)
 		else: return output
 	
+class BruteList(list):
+	"""A list with support for collision detection. This is mostly for comparison.
+
+	I wrote this when I realized that the SortSearchList doesn't actually *work*, and I think I'm going to leave it here, because I like
+	  that the way I've structured my classes meant that implementing a brute-force collision checker involved two new lines and one reference
+	  changed (in QuadTree.__init__). Simplicity! Also, so straightforward. I feel good about this.
+	"""
+	def collisions(self, item): return set(x for x in self if x is not item and intersects(x, item))
+
 # Linear Sort Search (on the x-axis)
 ###
 class SortSearchList(list):
@@ -187,8 +198,11 @@ class SortSearchList(list):
 	  when you get to an object whose minimum extent is greater than your maximum extent, you know you're done in that 
 	  direction. Likewise, you check in descending order by maximum extent - when you find one whose maximum extent
 	  is less than your minimum extent, you know that every other object in the list is going to be far outside your bounds.
-	It's a big improvement over a brute-force search, but it's not as good as a quadtree (I think). However, it produced
-	  really noticeable improvements when I used it as the Item bucket for a quadtree. So that's why it's here.
+	It's a big improvement over a brute-force search, but it's not as good as a quadtree. However, it produced really 
+	  noticeable improvements when I used it as the supporting data structure for a quadtree. So that's why it's here.
+
+	WARNING: This does NOT handle inverted shapes correctly. I'm not even sure if that's possible.
+	CRIPES THIS IS SO BROKEN
 	"""
 	def __init__(self, input_list=None):
 		list.__init__(self)
@@ -228,7 +242,8 @@ class SortSearchList(list):
 		# Similarly for the list of maxima.
 		index_maximum = bisect.bisect_left(self.maximums, self.max_key(item), key=self.max_key)
 
-		for other_item in self.minimums[index_minimum:]:
+		#for other_item in self.minimums[index_minimum:]:
+		for other_item in self.minimums:
 			if other_item == item: continue
 			# This is probably the most important part of this class. This says that we stop checking in
 			# this direction, when we find an object whose minimum is beyond our maximum.
@@ -236,7 +251,8 @@ class SortSearchList(list):
 			# If item intersects the item under consideration, then add it to the collision set.
 			if intersects(item, other_item) is not None: output.add(other_item) 
 
-		for other_item in self.maximums[index_maximum:]:
+		#for other_item in self.maximums[index_maximum:]:
+		for other_item in self.maximums:
 			if other_item == item: continue
 			# As above, important line here - Except that now, we're going through the list of right extents (maxima), and therefore backwards.
 			if x_max( other_item ) < x_min( item ): break

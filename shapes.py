@@ -11,22 +11,38 @@ defaultTS = 0.04
 SHAPE_LINE = 2
 SHAPE_CIRCLE = 1
 """ Collisions! And shapes!
+This file defines the behavior of various shape objects, which, as the name implies, describe the shapes of objects within the world.
+This is heavily relied on for collision detection - the intersect(me, you) function, which takes two objects with "shape" attributes,
+  is used for all collision detection.
+Furthermore, these functions are actually called significantly more often than they need to. This is, in the future, a major potential
+  spot for optimization, given how often these are called.
+The only collision that is particularly robust is circle/circle collisions. The circle/circle code can handle inverted circles, and also
+  extrapolates based on velocities.
 """
+
+# TODO: implement collision with circles such that circles are represented as extruded circles, so that they cannot move through objects at high speed.
 
 def intersect(me, you):
 	"""This function takes two objects and returns, uh, the smallest vector to fix their intersection. """
 	if not hasattr(me, "shape"): pass
 	if not hasattr(you, "shape"): pass
-	if me.shape.name == SHAPE_CIRCLE and you.shape.name == SHAPE_CIRCLE:
+	if me.shape.name is SHAPE_CIRCLE and you.shape.name is SHAPE_CIRCLE:
 		return circlecircle(me,you)
-	if me.shape.name == SHAPE_LINE and you.shape.name == SHAPE_CIRCLE:
+	if me.shape.name is SHAPE_LINE and you.shape.name is SHAPE_CIRCLE:
 		return linecircle(me,you)
-	if me.shape.name == SHAPE_CIRCLE and you.shape.name == SHAPE_LINE:
+	if me.shape.name is SHAPE_CIRCLE and you.shape.name is SHAPE_LINE:
 		output = linecircle(you,me)
 		return -output if output is not None else None
 
 def linecircle(lineobj, circleobj):
-	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting."""
+	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting.
+	
+	This function takes two objects with shape attributes, the first of which is a line. It checks to see if they are colliding, 
+	  not taking into account velocity particularly well, and returns the shortest vector by which to move the circle to remedy 
+	  the collision.
+	If the objects do not collide, it returns None.
+	"""
+	# TODO: Clean this up to be more readable, especially in the end bit.
 	# Comes from http://blog.generalrelativity.org/actionscript-30/collision-detection-circleline-segment-circlecapsule/ , pretty much.
 	sep = circleobj.pos - lineobj.pos
 	line = lineobj.shape
@@ -51,8 +67,13 @@ def linecircle(lineobj, circleobj):
 	return None
 
 def circlecircle(me,you):
-	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting."""
-	# TODO: implement circle/circle collision where one or both of them are extruded circles, to make sure that it's happening effectively.
+	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting.
+	
+	This function takes two objects with shape attributes. It checks to see if they are colliding, extrapolating their positions
+	  based on current velocities and a default timestep, and returns the shortest vector by which to move the object `me`, to 
+	  remedy the collision.
+	If the objects do not collide, it returns None.
+	"""
 	separation = me.pos - you.pos # My distance from you.
 	if separation.x == 0 and separation.y == 0:
 		unit_separation = v(0,-1)
@@ -60,59 +81,74 @@ def circlecircle(me,you):
 	else:
 		separation_magnitude = abs(separation)
 		unit_separation = separation.unit()
-
+	
 	ts = defaultTS
-	output = intervalcompare(\
-		(-me.shape.rad - ts*(me.vel*unit_separation),   me.shape.rad - ts*(me.vel*unit_separation)  ), \
-		(-you.shape.rad - ts*(you.vel*unit_separation), you.shape.rad - ts*(you.vel*unit_separation)), \
-		separation_magnitude, meinv = me.shape.invert , othinv = you.shape.invert )
+
+	if hasattr(me, "vel"): my_extents = (-me.shape.rad - ts*(me.vel*unit_separation), me.shape.rad - ts*(me.vel*unit_separation))
+	else: my_extents = (-me.shape.rad, me.shape.rad)
+
+	if hasattr(you, "vel"): your_extents = (-you.shape.rad - ts*(you.vel*unit_separation), you.shape.rad - ts*(you.vel*unit_separation))
+	else: your_extents = (-you.shape.rad, you.shape.rad)
+	
+	output = intervalcompare(my_extents, your_extents, separation_magnitude, me_inverted = me.shape.invert , other_inverted = you.shape.invert )
 
 	if output is None : return None
 	return output*unit_separation 
 
-def intervalcompare(extentsme, extentsother, msep, meinv = 0, othinv = 0):
-	"""Returns the amount by which to move 'me' to ensure that two intervals are no longer intersecting, or none if they're already fine.
+def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_inverted = False):
+	"""Returns the amount by which to move 'me' to ensure that two (1D) intervals are no longer intersecting, or none if they're already fine.
 	
 	extentsme and extentsother are tuples of left and right extents. 
 	msep is the amount by which their centers are separated.
-	meinv and othinv are flags - if they're nonzero, then different logic is used.
+	me_inverted and other_inverted are flags - if they're set, then different logic is used.
 	"""
-	output = None
+	a, b = extentsme[0], extentsme[1]
+	c, d = extentsother[0]+msep, extentsother[1]+msep
 	#Possibilities:
 	# If we're both inverted, then it's like this:				]a	b[	}c	d{
 	#   then there's nothing we can do.
-	if (not meinv == 0) and (not othinv == 0) :
+	if me_inverted and other_inverted :
 		return None
 		#output = msep + (extentsother[0] - extentsme[0] + extentsother[1] - extentsme[1])/2
 	# If I'm inverted and he's not, then it's like this:		]a	b[	{c	d}
 	#   then we need to move to align b and d, or a and c.
-	elif (not meinv == 0) and othinv == 0 :
-		if (msep + extentsother[0] > extentsme[0]) and (msep + extentsother[1] < extentsme[1]): return None
-		return min( msep + extentsother[1] - extentsme[1] , msep + extentsother[0] - extentsme[0] , key=abs)
+	elif me_inverted and not other_inverted :
+		#if (my_left < your_left and my_right > your_right) : return None
+		if (a < c and d < b): return None
+		#if (msep + extentsother[0] > extentsme[0]) and (msep + extentsother[1] < extentsme[1]): return None
+		#return min(your_right - my_right, your_left - my_right, key=abs)
+		return min(d-b, c-a, key=abs)
+		#return min( msep + extentsother[1] - extentsme[1] , msep + extentsother[0] - extentsme[0] , key=abs)
 	# If I'm he's inverted and I'm not, then it's like this:	[a	b]	}c	d{
 	#   then we need to move to align b and d, or a and c.
-	elif meinv == 0 and (not othinv == 0) :
-		if (msep + extentsother[0] < extentsme[0]) and (msep + extentsother[1] > extentsme[1]): return None
-		return min( msep + extentsother[1] - extentsme[1] , msep + extentsother[0] - extentsme[0] , key=abs)
+	elif not me_inverted and other_inverted :
+		if (a > c and b < d): return None
+		#if (msep + extentsother[0] < extentsme[0]) and (msep + extentsother[1] > extentsme[1]): return None
+		#return min(your_right - my_right, your_left - my_right, key=abs)
+		return min(d-b, c-a, key=abs)
+		#return min( msep + extentsother[1] - extentsme[1] , msep + extentsother[0] - extentsme[0] , key=abs)
 	# If neither of us are inverted, then it's like this:		[a	{c	b]	d}
 	#   then our options are a and d or b and c.
-	elif meinv == 0 and othinv == 0 :
-		if (msep + extentsother[0] > extentsme[1]): return None
-		if (msep + extentsother[1] < extentsme[0]): return None
-		return min( msep + extentsother[1] - extentsme[0] , msep + extentsother[0] - extentsme[1] , key=abs)
+	elif not me_inverted and not other_inverted :
+		if (a > d or b < c): return None
+		#if (msep + extentsother[0] > extentsme[1]): return None
+		#if (msep + extentsother[1] < extentsme[0]): return None
+		return min(c-b, d-a, key=abs)
+		#return min( msep + extentsother[1] - extentsme[0] , msep + extentsother[0] - extentsme[1] , key=abs)
 
 
 
 class Line(object):
-	""" One line. """
+	""" A line, potentially with rounded ends. """
 	def __init__(self, vector, thickness=0):
 		self.name = SHAPE_LINE
 		self.v = vector
 		self.normal = self.v.rperp().unit()
 		self.length = abs(vector)
-		self.lengthsq = vector*vector
 		self.thickness = thickness
 		self.angle = math.atan2(vector.y, vector.x)
+
+		# Build the vertex list.
 		if thickness == 0:
 			self.vlist = pyglet.graphics.vertex_list(2,'v3f')
 			self.vlist.vertices = [0, 0, 0, vector.x, vector.y, 0]
@@ -126,8 +162,9 @@ class Line(object):
 			self.vlist.vertices[d*(9+2):d*(9+3)] = [-thickness,self.length, 0.0]
 			self.vlist.vertices[d*(9+3):d*(9+4)] = [-thickness,0.0, 0.0]
 			for i in range(9):
-				self.vlist.vertices[d*(9+4)+d*i:d*(9+4)+d*(i+1)] = [-thickness * math.cos(math.pi*(i+1)/9),\
-													-thickness * math.sin(math.pi*(i+1)/9), 0.0]
+				self.vlist.vertices[d*(9+4)+d*i:d*(9+4)+d*(i+1)] = [-thickness*math.cos(math.pi*(i+1)/9), -thickness*math.sin(math.pi*(i+1)/9), 0.0]
+	
+		# Define the bounds.
 		self.xbounds = ( min(0,vector.x)-thickness, max(0,vector.x)+thickness )
 		self.ybounds = ( min(0,vector.y)-thickness, max(0,vector.y)+thickness )
 	def draw(self, location, z=0):
@@ -143,7 +180,7 @@ class Circle(object):
 	""" Makes a circle object, which has simplified extents/projection code.
 	Displays as a polygon with numpoints points.  Dynamic or fixed radius? For now, fixedish. or something.
 	"""
-	def __init__(self, numpoints = 10, rad = 30, drawtype = "oneline", invert = 0):
+	def __init__(self, numpoints = 10, rad = 30, drawtype = "oneline", invert = False):
 		self.name = SHAPE_CIRCLE
 		self.vlist = pyglet.graphics.vertex_list(numpoints,'v3f')
 		for i in range(numpoints):
@@ -170,3 +207,4 @@ class Circle(object):
 			self.vlist.draw(pyglet.gl.GL_POLYGON)
 		else: self.vlist.draw(self.drawtype)
 		pyglet.gl.glPopMatrix()
+

@@ -77,7 +77,7 @@ class TheScreen(object):
 		###########
 		
 		# Set up all the different lists of objects in the world. These roughly correspond to managers! Sort of.
-		self.coltree = quadtree.QuadTree(items=[], center=v(0,0), height=4)
+		self.coltree = quadtree.QuadTree(items=[], center=v(0,0), height=8)
 		
 		self.physics_objects = []
 		self.collision_objects = []
@@ -106,19 +106,27 @@ class TheScreen(object):
 		self.batch_addcomponent( EnemyBall(self, location = v(-260,0), rad=30) )
 		self.batch_addcomponent( EnemyBall(self, location = v(-100,60), rad=30) )
 
-		self.batch_addcomponent( ObstacleBall(self, location = v(-120,-200), rad=50) )
-		self.batch_addcomponent( ObstacleBall(self, location = v(60,-300), rad=30) )
-		self.batch_addcomponent( ObstacleBall(self, location = v(0,-800), rad=200) )
-		self.batch_addcomponent( ObstacleBall(self, location = v(-300,-500), rad=100) )
-		self.batch_addcomponent( ObstacleBall(self, location = v(200,300), rad=40) )
+		#self.batch_addcomponent( ObstacleBall(self, location = v(-120,-200), rad=50) )
+		#self.batch_addcomponent( ObstacleBall(self, location = v(60,-300), rad=30) )
+		#self.batch_addcomponent( ObstacleBall(self, location = v(0,-800), rad=200) )
+		#self.batch_addcomponent( ObstacleBall(self, location = v(-300,-500), rad=100) )
+		#self.batch_addcomponent( ObstacleBall(self, location = v(200,300), rad=40) )
+		for i in range(40):
+			r = random.uniform(0,1000)
+			angle = random.random()*2*math.pi
+			position = v(0, -400) + v(r*math.cos(angle), r*math.sin(angle))
+			self.batch_addcomponent( ObstacleBall(self, location = position, rad=40), static=True )
 
-		self.batch_addcomponent( ObstacleLine(self, location = v(2000, 0), endpoint=v(500, -1500), thick=20), static=True)
-		self.batch_addcomponent( ObstacleLine(self, location = v(-2000, 0), endpoint=v(-500, -1500), thick=20), static=True )
 
-		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(-1000, -150),thick = 20), static=True )
-		self.batch_addcomponent( ObstacleLine(self, location = v(0, 1500), endpoint=v(1000, -150),thick = 20), static=True )
+		self.batch_addcomponent( ObstacleLine(self, location=v(2000, 0), endpoint=v(500, -1500), thick=20), static=True )
+		self.batch_addcomponent( ObstacleLine(self, location=v(-2000, 0), endpoint=v(-500, -1500), thick=20), static=True )
+		self.batch_addcomponent( ObstacleLine(self, location=v(-1000, -1500), endpoint=v(1000, -1500), thick=20), static=True )
 
-		self.batch_addcomponent( InvertBall(self, location = v(0,500), rad=2000), static=True )
+		self.batch_addcomponent( ObstacleLine(self, location=v(0, 1500), endpoint=v(-1000, -150),thick = 20), static=True )
+		self.batch_addcomponent( ObstacleLine(self, location=v(0, 1500), endpoint=v(1000, -150),thick = 20), static=True )
+
+
+		self.batch_addcomponent( InvertBall(self, location = v(0,1000), rad=2600), static=True )
 
 		###########
 		# And now the list of components is done.
@@ -207,7 +215,9 @@ class TheScreen(object):
 		# Given that static objects never need to collide with one another, testing for collisions from nonstatics to everything
 		# should produce the same output as testing collisions from everything to everything. However, when we tried that, it produced
 		# inconsistent collision results between static and nonstatic objects.
-		for obj in self.collision_objects:
+
+		# Part of the problem is that the SortSearchList doesn't handle inverted objects correctly - and may not in fact be capable of this.
+		for obj in self.nonstatic_objects:
 			colset = self.coltree.collisions(obj) or set()
 			for col in colset:
 				obj.collide(col)
@@ -243,11 +253,11 @@ class PauseScreen(object):
 		self.preptoexit = False
 		self.pausetime = 0
 
-		self.top_text = "THE GAME! IT'S PAUSED!\nPress 'p' to unpause.\nTime: {0}\t\tKills: {1}"
+		self.top_text = "THE GAME! IT'S PAUSED!\nPress 'p' to unpause.\nKills: {0}"
 		self.bottom_text = "Don't forget: \nz to fire bullets! \nb to fire bombs! \nwasd to move! \nesc to exit!"
 
 		self.top_text_label = text.Label(
-				self.top_text.format(0,self.childscreen.killcount), \
+				self.top_text.format(self.childscreen.killcount), \
 				'Arial', 24, \
 				color = (0, 0, 0, 127),\
 				x = self.pwin.width/2, y = self.pwin.height/2 ,\
@@ -266,7 +276,7 @@ class PauseScreen(object):
 			)
 	def update(self, timestep):
 		self.pausetime += timestep
-		self.top_text_label.text = self.top_text.format(int(self.pausetime), self.childscreen.killcount)
+		self.top_text_label.text = self.top_text.format(self.childscreen.killcount)
 		if self.preptoexit and self.pausetime > 1:
 			if not self.pdep:
 				self.pausetime = 0
@@ -405,7 +415,7 @@ class InvertBall(object):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
-		self.shape.invert = 1
+		self.shape.invert = True
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
 	def collide(self,other): pass
@@ -484,7 +494,7 @@ class PlayerBall(object):
 		self.ftext = "huh?"
 		self.labelthing = text.Label( \
 				(self.templatetext) % (0, 0, self.ftext) , \
-				'Arial', 12, \
+				'Arial', 12, color=(0,0,0,255), \
 				x = 3*self.pscreen.pwin.width/4, y = 1*self.pscreen.pwin.height/4, \
 				anchor_x = "left" , anchor_y = "top" , \
 				width = self.pscreen.pwin.width/4 , height = self.pscreen.pwin.height/4 , multiline = 1 \
@@ -515,9 +525,7 @@ class PlayerBall(object):
 	def gotkill(self, other):
 		self.pscreen.killcountincrease()
 
-	def collide(self,other):
-		self.ftext = ("%f\t%f") % ((self.pos-other.pos).x, (self.pos-other.pos).y)
-		phys_collide(self,other)
+	def collide(self,other): phys_collide(self,other)
 	def update(self,timestep):
 		self.acc = self.acc + self.thrust*timestep*self.thrustdir
 
@@ -557,8 +565,7 @@ class BulletBall(object):
 		self.time_to_live = 4
 		self.time=0
 	def collide(self,other):
-		if hasattr(other,"player"):
-			if other.player: pass
+		if hasattr(other,"player") and other.player: return
 		if hasattr(other,"enemy"): 
 			if other.enemy:
 				self.dead = True
@@ -583,7 +590,9 @@ class BombBall(object):
 		self.parent = parent
 		self.time_to_live=2
 		self.time=0
-	def collide(self, other): phys_collide(self,other)
+	def collide(self, other):
+		if hasattr(other,"player") and other.player: return
+		phys_collide(self,other)
 	def update(self,timestep):
 		self.time += timestep
 		if self.time > self.time_to_live: 
@@ -624,9 +633,13 @@ class CameraFollower(object):
 		initialize_states(self, dead=False, tangible=False, immobile=False)
 		self.z = -10
 
-		self.templatetext = "FPS: %.2f"
-		self.labelthing = text.Label((self.templatetext) % (0,) , 'Arial', 12, x=0, y=0, anchor_x="left", anchor_y="top",\
-				width = self.pscreen.pwin.width/4 , height = self.pscreen.pwin.height/4 , multiline = 1 )
+		self.template_text = "FPS: {0:.2f}\n# of Objects: {1}\n# of Non-Static: {2}"
+		self.label_thing = text.Label(\
+				self.template_text.format(0, 0, 0), \
+				font_name='Arial', font_size=12, color=(0,0,0,255), \
+				#x=0, y=0, anchor_x="left", anchor_y="top", \
+				x = 3*self.pscreen.pwin.width/4, y = 1*self.pscreen.pwin.height/4, \
+				width = self.pscreen.pwin.width/4, height = self.pscreen.pwin.height/4, multiline = 1 )
 
 		self.target = latch
 		self.spring = spring
@@ -653,8 +666,9 @@ class CameraFollower(object):
 		scalefactor = scalefactor + 1
 		self.scale = self.decay*self.scale + (1-self.decay)/scalefactor
 		self.time = self.time + timestep
-		#print(self.pscreen.pwin.avefps)
+		self.label_thing.text = self.template_text.format(self.pscreen.pwin.avefps, len(self.pscreen.coltree), len(self.pscreen.nonstatic_objects))
 	def draw(self):
+		self.label_thing.draw()
 		pyglet.gl.glLoadIdentity()
 		pyglet.gl.glTranslatef( self.pscreen.pwin.width/2, self.pscreen.pwin.height/2, 0.0 ) # Take the center of the parent window as the origin.
 		pyglet.gl.glFrustum(-1.0, 1.0, -1.0, 1.0, 0.5, 20.0) # Set up the frustrum
