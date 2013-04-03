@@ -2,4 +2,47 @@ level loading
 get collision detection working again
 cutscene window!
 level changing ingame
+menu screen!
+
+collision behavior:
+	requires a position
+	requires a shape for what things collide with
+	includes whether the object is static or not - if so, streamline collision detection
+	includes a function me.collides_with(you) which returns a boolean for whether these objects should collide.
+		this is intended to be a logical test, rather than a positional test - i.e., if I'm ethereal to you, don't collide. 
+		this is not a collision test.
+		somewhere else, we test for collisions, and then when we've found that the shapes of a and b collide, we do this:
+		if a.collides_with(b) and b.collides_with(a): 
+			a.collide(b)
+			b.collide(a)
+		and that's how we resolve the question of whether objects should collide with each other.
+		bullets will have:
+		def BulletBall::collides_with(me, you):
+			if hasattr(you,"player") and you.player: return False
+		and yeah.
+	includes a function me.collide(you) which acts to fix the collision.
+
+	system:
+		check for collisions between objects which should collide, do their behavior as necessary
+
+rigidbody behavior:
+	requires a shape for dynamics
+	requires a shape (probably the same as above?) for collisions?
+	requires a position and velocity?
+	includes mass, velocity, acceleration, physicsmaterial
+
+	may not need to have collisions - we want some objects to have some physics behavior (inertia, acceleration) but not collide with things - the camera is a good example
+
+input listening behavior:
+	define a number of functions:
+		on_key_press(self, symbol, modifiers)
+		on_key_release(self, symbol, modifiers)
+		on_mouse_press(self, x, y, button, modifiers):
+		on_mouse_drag(self, x, y, dx, dy, button, modifiers):
+		on_mouse_motion(self, x, y, dx, dy): 
+	which default to doing nothing
+	possibly they default to keeping track of what buttons are pressed?
+	also possibly the mouse ones fire to each other so that you can define just on_mouse_press and then drag (if undefined) will call it
+
+
 
