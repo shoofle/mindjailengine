@@ -515,8 +515,7 @@ class PlayerBall(object):
 		self.pscreen.addcomponent(newbomb)
 
 	def gotkill(self, other): self.pscreen.killcountincrease()
-
-def collide(self,other): phys_collide(self,other)
+	def collide(self,other): phys_collide(self,other)
 	def update(self,timestep):
 		self.acc = self.acc + self.thrust*timestep*self.thrustdir
 		update_world(self,timestep)
@@ -552,7 +551,7 @@ class BulletBall(object):
 		self.time_to_live = 4
 		self.time=0
 	def collide(self,other):
-		if other is self.parent
+		if other is self.parent: return
 		#if hasattr(other,"player") and other.player: return
 		if hasattr(other,"enemy") and other.enemy:
 			self.dead = True
