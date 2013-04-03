@@ -5,7 +5,6 @@
 
 import pyglet
 from pyglet import window, clock, text
-from pyglet.window import key, mouse
 
 import mod_screen
 from vectors import v
@@ -38,11 +37,6 @@ class GameWindow(window.Window):
 		#self.gridres = 10
 
 		# self.keyst is the dict of all the keys which are currently being pressed, referenced by symbol strings from key.
-		self.keyst = dict()
-		self.mousest = dict({'x':0, 'y':0, 'button':""})
-		self.keyboard = key.KeyStateHandler()
-		self.push_handlers(self.keyboard)
-
 		self.keyspressed = False
 
 		# keytext is a multi-line label to hold data about what keys are being pressed, and, um, stuff?
@@ -88,8 +82,6 @@ class GameWindow(window.Window):
 	def on_key_release(self,symbol,modifiers):
 		if not self.keyspressed: pass 
 		self.thescreen.on_key_release(symbol, modifiers)
-		if key.symbol_string(symbol) in self.keyst:
-			del self.keyst[key.symbol_string(symbol)]
 	def on_mouse_press(self, x, y, button, modifiers):
 		self.thescreen.on_mouse_press(x, y, button, modifiers)
 	def on_mouse_drag(self, x, y, dx, dy, button, modifiers):
