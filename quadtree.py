@@ -25,6 +25,7 @@ def center_from_group(things):
 
 def intersects(a, b):
 	"""Return whether or not me and you are colliding. May very well be overwritten by the caller of the library."""
+#	return x_min(a) < x_max(b) and x_max(a) > x_min(b) and y_min(a) < y_max(b) and y_max(a) > y_min(b)
 	if a.test_for_collision and b.test_for_collision:
 		return shapes.intersect(a,b)
 
