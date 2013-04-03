@@ -384,21 +384,19 @@ class FreeBall(object):
 		initialize_habitats(self,pscreen)
 		initialize_states(self)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
-	def collide(self,other):
-		phys_collide(self,other)
+	def collide(self,other): phys_collide(self,other)
 	def update(self,timestep):
 		update_world(self,timestep)
 		update_inertia(self,timestep)
-	def draw(self):
-		self.shape.draw(self.pos)
+	def draw(self): self.shape.draw(self.pos)
 class ObstacleBall(object):
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
+	def collide(self,other): pass
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
-	def collide(self,other): pass
 class ObstacleLine(object):
 	def __init__(self, pscreen, location=v(0,0), endpoint=v(0,1), thick = 0,*args, **kwargs):
 		initialize_habitats(self,pscreen)
@@ -407,18 +405,18 @@ class ObstacleLine(object):
 		self.start = self.pos
 		self.end = endpoint
 		self.shape = shapes.Line(endpoint - self.pos, thickness = thick)
+	def collide(self,other): pass
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
-	def collide(self,other): pass
 class InvertBall(object):
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
 		self.shape.invert = True
+	def collide(self,other): pass
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
-	def collide(self,other): pass
 
 
 
@@ -440,7 +438,7 @@ class Spawner(object):
 		self.maxvelocity = 1000
 	def collide(self,other): pass
 	def update(self, timestep):
-		if self.spawn_count > self.spawn_count_max: return None
+		if self.spawn_count > self.spawn_count_max: return
 		if random.random() < self.spawn_chance:
 			r = random.random()*self.rad
 			angle = random.random()*2*math.pi
@@ -466,8 +464,7 @@ class EnemyBall(object):
 		self.shape.drawtype = "fill"
 		self.enemy = True
 	def collide(self,other):
-		if hasattr(other,"bullet"):
-			if other.bullet: self.dead = True
+		if hasattr(other,"bullet") and other.bullet: self.dead = True
 		phys_collide(self,other)
 	def update(self,timestep):
 		update_world(self,timestep)
@@ -490,15 +487,14 @@ class PlayerBall(object):
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=15)
 		self.z=0
 
-		self.templatetext = "Our hero, L&G!:\n%f\t%f\n%s"
-		self.ftext = "huh?"
-		self.labelthing = text.Label( \
-				(self.templatetext) % (0, 0, self.ftext) , \
-				'Arial', 12, color=(0,0,0,255), \
-				x = 3*self.pscreen.pwin.width/4, y = 1*self.pscreen.pwin.height/4, \
-				anchor_x = "left" , anchor_y = "top" , \
-				width = self.pscreen.pwin.width/4 , height = self.pscreen.pwin.height/4 , multiline = 1 \
-			)
+		#self.templatetext = "Our hero, L&G!:\n%f\t%f\n%s"
+		#self.labelthing = text.Label( \
+		#		(self.templatetext) % (0, 0, self.ftext) , \
+		#		'Arial', 12, color=(0,0,0,255), \
+		#		x = 3*self.pscreen.pwin.width/4, y = 1*self.pscreen.pwin.height/4, \
+		#		anchor_x = "left" , anchor_y = "top" , \
+		#		width = self.pscreen.pwin.width/4 , height = self.pscreen.pwin.height/4 , multiline = 1 \
+		#	)
 
 		self.thrust = 7500
 		self.thrustdir = v(0,0)
@@ -508,33 +504,24 @@ class PlayerBall(object):
 
 	def fire_bullet(self):
 		newbullet = BulletBall(self.pscreen, self, location=self.pos)
-		if abs(self.vel) == 0:
-			newbullet.vel = v(0, 800)
-		else:
-			newbullet.vel = self.vel + 800*self.vel.unit()
+		if abs(self.vel) == 0: newbullet.vel = v(0, 800)
+		else: newbullet.vel = self.vel + 800*self.vel.unit()
 		self.pscreen.addcomponent(newbullet)
 
 	def fire_bomb(self):
 		newbomb = BombBall(self.pscreen, self, location=self.pos)
-		if abs(self.vel) == 0:
-			newbomb.vel = v(0, 200)
-		else:
-			newbomb.vel = self.vel + 200*self.vel.unit()
+		if abs(self.vel) == 0: newbomb.vel = v(0, 200)
+		else: newbomb.vel = self.vel + 200*self.vel.unit()
 		self.pscreen.addcomponent(newbomb)
 
-	def gotkill(self, other):
-		self.pscreen.killcountincrease()
+	def gotkill(self, other): self.pscreen.killcountincrease()
 
-	def collide(self,other): phys_collide(self,other)
+def collide(self,other): phys_collide(self,other)
 	def update(self,timestep):
 		self.acc = self.acc + self.thrust*timestep*self.thrustdir
-
 		update_world(self,timestep)
 		update_inertia(self,timestep)
-
-		self.labelthing.text = self.templatetext % (self.pos.x, self.pos.y, self.ftext)
 	def draw(self):
-		self.labelthing.draw()
 		pyglet.gl.glColor3f(0.0,0.6,0.0)
 		self.shape.draw(self.pos)
 		pyglet.gl.glColor3f(0.0,0.0,1.0)
@@ -551,9 +538,9 @@ class PlayerBall(object):
 		if symbol == key.DOWN: self.thrustdir = self.thrustdir - v(0,-1)
 		if symbol == key.LEFT: self.thrustdir = self.thrustdir - v(-1,0)
 		if symbol == key.RIGHT: self.thrustdir = self.thrustdir - v(1,0)
-	def on_mouse_press(self, x, y, button, modifiers):pass
-	def on_mouse_drag(self, x, y, dx, dy, button, modifiers):pass
-	def on_mouse_motion(self, x, y, dx, dy):pass
+	def on_mouse_press(self, x, y, button, modifiers): pass
+	def on_mouse_drag(self, x, y, dx, dy, button, modifiers): pass
+	def on_mouse_motion(self, x, y, dx, dy): pass
 class BulletBall(object):
 	""" A projectile object. It's a circle! Woo."""
 	def __init__(self, pscreen, parent,location=v(0,0), *args, **kwargs):
@@ -565,12 +552,12 @@ class BulletBall(object):
 		self.time_to_live = 4
 		self.time=0
 	def collide(self,other):
-		if hasattr(other,"player") and other.player: return
-		if hasattr(other,"enemy"): 
-			if other.enemy:
-				self.dead = True
-				self.parent.gotkill(other)
-				pass
+		if other is self.parent
+		#if hasattr(other,"player") and other.player: return
+		if hasattr(other,"enemy") and other.enemy:
+			self.dead = True
+			self.parent.gotkill(other)
+			return
 		phys_collide(self,other)
 	def update(self,timestep):
 		self.time += timestep
@@ -591,7 +578,8 @@ class BombBall(object):
 		self.time_to_live=2
 		self.time=0
 	def collide(self, other):
-		if hasattr(other,"player") and other.player: return
+		if other is self.parent: return 
+		#if hasattr(other,"player") and other.player: return
 		phys_collide(self,other)
 	def update(self,timestep):
 		self.time += timestep
@@ -615,18 +603,16 @@ class BombExplosion(object):
 		self.parent = parent
 		self.time_to_live=0.5
 		self.time=0
-	def collide(self, other):
-		other.acc = 100*(1-self.time/self.time_to_live)*(other.pos - self.pos)
+	def collide(self, other): other.acc = 100*(1-self.time/self.time_to_live)*(other.pos - self.pos)
 	def update(self, timestep):
 		self.time += timestep
 		if self.time > self.time_to_live:
 			self.dead = True
-		update_world(self, timestep)
 	def draw(self):
-		# Color fades to something..
-		# Should start as red, then face to black/grey.
 		pyglet.gl.glColor4f(1.0-self.time/self.time_to_live, 0*self.time/self.time_to_live, 0*self.time/self.time_to_live, 1.0-self.time/self.time_to_live)
 		self.shape.draw(self.pos)
+
+
 class CameraFollower(object):
 	def __init__(self, pscreen, latch=None, spring=30, damping=2):
 		initialize_habitats(self,pscreen)
@@ -634,7 +620,7 @@ class CameraFollower(object):
 		self.z = -10
 
 		self.template_text = "FPS: {0:.2f}\n# of Objects: {1}\n# of Non-Static: {2}"
-		self.label_thing = text.Label(\
+		self.hud_label = text.Label(\
 				self.template_text.format(0, 0, 0), \
 				font_name='Arial', font_size=12, color=(0,0,0,255), \
 				#x=0, y=0, anchor_x="left", anchor_y="top", \
@@ -646,7 +632,6 @@ class CameraFollower(object):
 		self.damping = damping
 
 		self.scale = 0.5
-		self.sy = 0.5
 		self.decay = 0.4
 
 		self.time = 0
@@ -655,6 +640,7 @@ class CameraFollower(object):
 		self.vel = self.target.vel
 		self.acc = v(0,0)
 	def update(self,timestep):
+		# The reason this doesn't call update_inertia is that that also deals with the collision tree.
 		self.acc = self.acc + self.spring*(self.target.pos-self.pos)
 		self.acc = self.acc - self.damping*self.vel
 		self.vel = self.vel + timestep*self.acc
@@ -662,16 +648,15 @@ class CameraFollower(object):
 		self.acc = v(0,0)
 
 		targvel = abs(self.target.vel)/1000
-		scalefactor = 2/(1+math.exp(-targvel))
-		scalefactor = scalefactor + 1
+		scalefactor = 1 + 2/(1+math.exp(-targvel))
 		self.scale = self.decay*self.scale + (1-self.decay)/scalefactor
 		self.time = self.time + timestep
-		self.label_thing.text = self.template_text.format(self.pscreen.pwin.avefps, len(self.pscreen.coltree), len(self.pscreen.nonstatic_objects))
+		
+		self.hud_label.text = self.template_text.format(self.pscreen.pwin.avefps, len(self.pscreen.coltree), len(self.pscreen.nonstatic_objects))
+
 	def draw(self):
-		self.label_thing.draw()
+		self.hud_label.draw()
 		pyglet.gl.glLoadIdentity()
 		pyglet.gl.glTranslatef( self.pscreen.pwin.width/2, self.pscreen.pwin.height/2, 0.0 ) # Take the center of the parent window as the origin.
 		pyglet.gl.glFrustum(-1.0, 1.0, -1.0, 1.0, 0.5, 20.0) # Set up the frustrum
-		#pyglet.gl.glScalef( 1/self.scale, 1/self.sy, 1.0)
 		pyglet.gl.glTranslatef( -self.pos.x, -self.pos.y, -0.5/self.scale )
-		#self.labelthing.draw()

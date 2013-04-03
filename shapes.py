@@ -81,13 +81,25 @@ def circlecircle(me,you):
 	else:
 		separation_magnitude = abs(separation)
 		unit_separation = separation.unit()
-	
-	ts = defaultTS
 
+	ts = defaultTS
+	if not me.shape.invert and not you.shape.invert:
+		val = separation_magnitude - (me.shape.rad + you.shape.rad - ts*(me.vel*unit_separation + you.vel*unit_separation))
+		if val < 0: return val*unit_separation
+	if not me.shape.invert and you.shape.invert: # You're inverted, I'm not.
+		val = (separation_magnitude + me.shape.rad - ts*(me.vel*unit_separation)) - (you.shape.rad - ts*(you.vel*unit_separation))
+		if val > 0: return -val*unit_separation
+	if me.shape.invert and not you.shape.invert: # I'm inverted, you're not.
+		val = (separation_magnitude + you.shape.rad - ts*(you.vel*unit_separation)) - (me.shape.rad - ts*(me.vel*unit_separation))
+		if val > 0: return val*unit_separation
+	#if you.shape.invert and not me.shape.invert:
+	#	val = (me.shape.rad - ts*(me.vel*unit_separation))
+	
+	# When you're adding in the velocity correction, you subtract because unit_separation is going to be in the wrong direction.
 	if hasattr(me, "vel"): my_extents = (-me.shape.rad - ts*(me.vel*unit_separation), me.shape.rad - ts*(me.vel*unit_separation))
 	else: my_extents = (-me.shape.rad, me.shape.rad)
 
-	if hasattr(you, "vel"): your_extents = (-you.shape.rad - ts*(you.vel*unit_separation), you.shape.rad - ts*(you.vel*unit_separation))
+	if hasattr(you, "vel"): your_extents = (-you.shape.rad + ts*(you.vel*unit_separation), you.shape.rad + ts*(you.vel*unit_separation))
 	else: your_extents = (-you.shape.rad, you.shape.rad)
 	
 	output = intervalcompare(my_extents, your_extents, separation_magnitude, me_inverted = me.shape.invert , other_inverted = you.shape.invert )
