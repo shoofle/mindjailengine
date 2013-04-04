@@ -10,13 +10,12 @@ import math
 import shapes
 from vectors import v
 
-import quadtree
+import collision_structures
 
 def intersecttest(a, b):
 	if a.test_for_collision and b.test_for_collision:
 		return shapes.intersect(a,b)
-quadtree.intersects = intersecttest
-#quadtree.sortsearchsolution.intersects = intersecttest
+collision_structures.intersects = intersecttest
 
 """ A class containing a module for the game. """
 class TheScreen(object):
@@ -77,7 +76,7 @@ class TheScreen(object):
 		###########
 		
 		# Set up all the different lists of objects in the world. These roughly correspond to managers! Sort of.
-		self.coltree = quadtree.QuadTree(items=[], center=v(0,0), height=8)
+		self.coltree = collision_structures.SpatialGrid()
 		
 		self.physics_objects = []
 		self.collision_objects = []
@@ -137,7 +136,7 @@ class TheScreen(object):
 		self.constants = {'drag':10, 'gravity':5000, 'elasticity':0.7, 'friction':0.9, 'displace':0.5}
 
 	def batch_addcomponent(self, thing, physics=True, collisions=None, static=None, priority=False, listeners=False):
-		"""Add a number of components to the lists of objects with various qualities, but do not yet add them to the quadtree.
+		"""Add a number of components to the lists of objects with various qualities, but do not yet add them to the collision structure.
 
 		This method is supposed to be used to add a large number of objects at once - and then followed up by a call that adds
 		  the appropriate objects into the coltree. The various keyword arguments have meanings:

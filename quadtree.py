@@ -4,6 +4,8 @@ import random
 import bisect
 import shapes
 
+"""I seem to have written a startling number of data structures for collision detection. The most notable is the BSPTree, which is the refinement of the QuadTree."""
+
 y_min = lambda o: o.pos.y + o.shape.ybounds[0]
 y_max = lambda o: o.pos.y + o.shape.ybounds[1]
 x_min = lambda o: o.pos.x + o.shape.xbounds[0]
@@ -12,22 +14,169 @@ x_max = lambda o: o.pos.x + o.shape.xbounds[1]
 split_threshhold = 5 # When you bulk-add a bunch of objects, this serves the purpose of saying "hey, if this quadtree's going to have 
 # fewer than this many objects, we might as well just chuck'em all in the Items bucket." I don't even know if this is a good *idea*. 
 # It's not used very much.
-bucket_indices = (0,1,2,3)
+MAX_DEPTH = 15
 
-def center_from_object(thing):
-	return thing.pos.x, thing.pos.y
+def center_from_object(thing): return thing.pos
 
-def center_from_group(things):
-	#sampling = random.sample(things, min(len(things), 10))
-	# Average their positions based on their pos attributes.
-	center = sum(map(lambda x: x.pos, things),v(0,0))/len(things)
-	return center.x, center.y
+def center_from_group(things): return sum(map(lambda x: x.pos, things),v(0,0))/len(things)
 
 def intersects(a, b):
 	"""Return whether or not me and you are colliding. May very well be overwritten by the caller of the library."""
 #	return x_min(a) < x_max(b) and x_max(a) > x_min(b) and y_min(a) < y_max(b) and y_max(a) > y_min(b)
 	if a.test_for_collision and b.test_for_collision:
 		return shapes.intersect(a,b)
+
+class DataStructure(object):
+	def __init__(self, items): pass
+	def collisions(self, item): return set()
+	def append(self, item): pass
+	def extend(self, items): pass
+	def remove(self, item): pass
+	def __contains__(self, item): pass
+	def __len__(self): return 0
+
+
+class SpatialGrid(object):
+	"""A loose spatial grid. Contains a dict mapping tuples to a secondary container.
+
+	When you test to see if an object collides, you have to check a few grid squares around where it belongs, to make sure you get possible overlaps. 
+	This structure relies on the supposition that the objects being stored in it are smaller than max_size - so all the objects they can collide with
+	  are either within the same square as them, or in one of the neighboring squares.
+	"""
+	def __init__(self, items=None, max_size=50):
+		self.grid_size = max_size
+		self.grid = dict()
+		if self.grid_size > 120:
+			self.secondary = BruteList()
+		else:
+			self.secondary = BSPTree()
+	def too_big(self, item): return max(x_max(item)-x_min(item), y_max(item)-y_min(item)) > self.grid_size
+	def collisions(self, item):
+		location = int(item.pos.x/self.grid_size), int(item.pos.y/self.grid_size)
+		grid_squares = ((i,j) for i in range(location[0]-1, location[0]+1) for j in range(location[1]-1, location[1]+1) if (i,j) in self.grid)
+		return reduce(lambda s, t: s | self.grid[t].collisions(item), grid_squares, set()) | self.secondary.collisions(item)
+	def append(self, item):
+		if self.too_big(item):
+			self.secondary.append(item)
+		else:
+			location = int(item.pos.x/self.grid_size), int(item.pos.y/self.grid_size)
+			if location not in self.grid: self.grid[location] = BruteList()
+			self.grid[location].append(item)
+	def extend(self, items): 
+		self.secondary.extend([i for i in items if self.too_big(i)])
+		for i in items:
+			if not self.too_big(i): self.append(i)
+	def remove(self, item):
+		location = int(item.pos.x/self.grid_size), int(item.pos.y/self.grid_size)
+		if self.too_big(item) and item in self.secondary:
+			self.secondary.remove(item)				
+		elif location in self.grid and item in self.grid[location]:
+			self.grid[location].remove(item)
+			if len(self.grid[location]) is 0: 
+				del self.grid[location]
+		else: 
+			for l in self.grid:
+				if item in self.grid[l]:
+					self.grid[l].remove(item)
+					if len(self.grid[l]) is 0: 
+						del self.grid[l]
+						break
+	def __contains__(self, item):
+		location = int(item.pos.x/self.grid_size), int(item.pos.y/self.grid_size)
+		if location in self.grid and item in self.grid[location]: return True
+		return any(item in g for g in self.grid.itervalues())
+	def __len__(self): 
+		return len(self.secondary) + sum(map(lambda x: len(self.grid[x]), self.grid))
+
+class BSPTree(object):
+	"""This is a Binary Space Partitioning tree, which at every level divides space into two half-planes.
+
+	TODO: There's no pruning of empty trees.
+	TODO: This is in need of a (more) efficient data structure for storing the contents bucket.
+	TODO: Efficiently rebalance the quadtree when necessary.
+	"""
+	def __init__(self, items=None, center=None, height=0, normal=None, offset=0):
+		self.leaf_node = True
+		self.offset = offset
+		self.height = height
+
+		if self.height%2: 
+			self.min_extent, self.max_extent = x_min, x_max
+			e = y_min, y_max
+		else: 
+			self.min_extent, self.max_extent = y_min, y_max
+			e = x_min, x_max
+
+		if self.height <= MAX_DEPTH+1:
+			self.left, self.center, self.right = QuadTree(height = self.height + 1), BruteList(), QuadTree(height = self.height + 1)
+		else:
+			self.left, self.center, self.right = None, BruteList(), None
+		
+		if items is not None: self.extend(items)
+
+	def collisions(self, thing):
+		"""Return a set of all the objects in self colliding with thing."""
+		if self.leaf_node: return set()
+		
+		output = self.center.collisions(thing)
+		if self.min_extent(thing) < self.offset: output = output | self.left.collisions(thing)
+		if self.max_extent(thing) > self.offset: output = output | self.right.collisions(thing)
+
+		return output
+
+	def append(self, item):
+		if self.leaf_node:
+			self.leaf_node = False # First things first, this is no longer a leaf node.
+			center = center_from_object(item)
+			self.offset = center.x if self.height%2 else center.y # Fix these references to vectors
+
+			self.append(item) # Now we're not a leaf node, so regular append logic will apply.
+		else:
+			if self.height > MAX_DEPTH: return self.center.append(item)
+
+			if self.max_extent(item) < self.offset: return self.left.append(item)
+			if self.min_extent(item) > self.offset: return self.right.append(item)
+			return self.center.append(item)
+
+	def extend(self, items):
+		if len(items) is 0: return # Seriously, who extends by an empty list? Dick.
+		if len(items) is 1: return self.append(items[0])# If only one object is being added, append it instead. Why are you using extend? Dolt.
+		if self.leaf_node:
+			self.leaf_node = False # First things first, this is no longer a leaf node.
+			center = center_from_group(items)
+			self.offset = center.x if self.height%2 else center.y # Fix these references to vectors
+			
+			self.extend(items) # Now just extend as normal.
+		else:
+			if self.height > MAX_DEPTH: return self.center.extend(items)
+
+			self.left.extend([a for a in items if self.max_extent(a) < self.offset])
+			self.center.extend([a for a in items if self.min_extent(a) <= self.offset <= self.max_extent(a)])
+			self.right.extend([a for a in items if self.max_extent(a) > self.offset])
+
+	def remove(self, item):
+		"""Removes item from self. Returns False if the item isn't here, True if it was removed."""
+		if self.leaf_node: return False
+
+		if item in self.left: self.left.remove(item)
+		elif item in self.center: self.center.remove(item)
+		elif item in self.right: self.right.remove(item)
+
+		if len(self) is 0: self.leaf_node = True
+	def __contains__(self, item):
+		if self.leaf_node: return False
+		return item in self.left or item in self.center or item in self.right
+	def __len__(self): 
+		if self.leaf_node: return 0 
+		return len(self.left) + len(self.center) + len(self.right)
+	def status_rep(self, indent=''):
+		if self.leaf_node: return []
+		output = []
+		output.extend(self.left.status_rep(indent + '--'))
+		output.append(indent + '{0} total, {1} here, divided on {2} at {3}'.format(len(self), len(self.center), 'x' if self.height%2 else 'y', self.offset))
+		output.extend(self.right.status_rep(indent + '--'))
+		if indent is '': return '\n'.join(output)
+		return output
 
 
 class QuadTree(object):
@@ -46,7 +195,7 @@ class QuadTree(object):
 	  would also encapsulate the relationship of the quadtree to the space it's in. That's a thing I should really do.
 	TODO: Implement empty Leaf Nodes. right now you have to handle empty nodes everywhere; that is very suboptimal.
 	"""
-
+	bucket_indices = (0,1,2,3)
 	def __init__(self, items=None, center=None, height=8):
 		self.leaf_node = True
 		self.height = height
@@ -94,9 +243,10 @@ class QuadTree(object):
 			# If this is a leaf node, well, that's not going to stay. First off, we undo that marker.
 			self.leaf_node = False
 			# Now we initialize all of the children, so that they're going to be leaf node quadtrees..
-			self.children = [QuadTree(height = self.height-1) for i in bucket_indices]
+			self.children = [QuadTree(height = self.height-1) for i in QuadTree.bucket_indices]
 			# Now make sure that the center is marked correctly given that the object we're adding is in the center.
-			self.xc, self.yc = center_from_object(item)
+			center = center_from_object(item)
+			self.xc, self.yc = center.x, center.y
 			# Now we're not a leaf node, so regular append logic will apply.
 			self.append(item)
 		else:
@@ -118,16 +268,17 @@ class QuadTree(object):
 			# First things first, this is no longer a leaf node.
 			self.leaf_node = False
 			# Second things second, we're going to initialize the children.
-			self.children = [QuadTree(height = self.height-1) for i in bucket_indices]
+			self.children = [QuadTree(height = self.height-1) for i in QuadTree.bucket_indices]
 			# Third things third, we need to figure out where to locate our center. I'm not sure how this should be done!
-			self.xc, self.yc = center_from_group(items)
+			center = center_from_group(items)
+			self.xc, self.yc = center.x, center.y
 			# Now just extend as normal.
 			self.extend(items)
 		else:
 			# First off, let's get the ones that should go in the contents bucket.
 			self.contents.extend([x for x in items if self.get_bucket_label(x) is -1])
 			# For each bucket, extend it by those objects which should go in that bucket.
-			for i in bucket_indices: self.children[i].extend([x for x in items if self.get_bucket_label(x) is i])
+			for i in QuadTree.bucket_indices: self.children[i].extend([x for x in items if self.get_bucket_label(x) is i])
 
 	def remove(self, item):
 		"""Removes item from self. Returns False if the item isn't here, True if it was removed."""
@@ -186,8 +337,90 @@ class BruteList(list):
 	"""
 	def collisions(self, item): return set(x for x in self if x is not item and intersects(x, item))
 
+class IntervalTree(object):
+	"""A tree for storing intervals along some axis.
+	
+	This wasn't found to make a noticeable improvement over the BruteList on the testbed level. Let's leave it here in the graveyard.
+	The point of this data structure is to store the intervals a bunch of objects occupy on some axis. This was supposed to improve the BSPTree.
+	It didn't. Too slow in python. This'd probably make sense in an external library, but it doesn't work here."""
+	def __init__(self, input_list=None, extents=(x_min, x_max)):
+		self.leaf_node = True
+		self.center = 0
+		self.left, self.right = None, None
+		self.by_left_extent, self.by_right_extent = [], []
+		self.min_extent, self.max_extent = extents
+
+		if input_list is not None: self.extend(input_list)
+	
+	def append(self, item):
+		if self.leaf_node:
+			self.leaf_node = False
+			self.left, self.right = IntervalTree(), IntervalTree()
+			self.center = (self.min_extent(item) + self.max_extent(item))/2
+		
+			self.append(item)
+		else:
+			if self.max_extent(item) < self.center: return self.left.append(item)
+			if self.min_extent(item) > self.center: return self.right.append(item)
+
+			self.by_left_extent.append(item)
+			self.by_left_extent.sort(key=self.min_extent)
+			self.by_right_extent.append(item)
+			self.by_right_extent.sort(key=self.max_extent)
+	def extend(self, items):
+		if len(items) is 0: return
+		if len(items) is 1: self.append(items[0])
+		if self.leaf_node:
+			self.leaf_node = False
+			self.left, self.right = IntervalTree(), IntervalTree()
+			self.center = (sum(map(self.min_extent, items)) + sum(map(self.max_extent, items)))/(2*len(items))
+
+			self.extend(items)
+		else:
+			self.left.extend([a for a in items if self.max_extent(a) < self.center])
+			self.right.extend([a for a in items if self.min_extent(a) > self.center])
+
+			here = [a for a in items if self.min_extent(a) < self.center < self.max_extent(a)]
+			self.by_left_extent.extend(here)
+			self.by_left_extent.sort(key=self.min_extent)
+			self.by_right_extent.extend(here)
+			self.by_right_extent.sort(key=self.max_extent)
+	def remove(self, item):
+		if self.leaf_node: return False
+		if item in self.by_left_extent:
+			self.by_left_extent.remove(item)
+			self.by_right_extent.remove(item)
+		elif item in self.left: self.left.remove(item)
+		elif item in self.right: self.right.remove(item)
+		if len(self) is 0: self.leaf_node = True
+	def collisions(self, item):
+		if self.leaf_node: return set()
+		output = set()
+		min_item, max_item = self.min_extent(item), self.max_extent(item)
+		if max_item < self.center:
+			output = output | self.left.collisions(item)
+			for i in self.by_left_extent:
+				if self.min_extent(i) > max_item: break
+				elif intersects(i, item) and i is not item: output.add(i)
+		elif min_item < self.center < max_item:
+			output = output | self.left.collisions(item)
+			output = set(a for a in self.by_left_extent if intersects(a, item) and a is not item)
+			output = output | self.right.collisions(item)
+		elif self.center < min_item:
+			output = output | self.right.collisions(item)
+			for i in self.by_right_extent:
+				if self.max_extent(i) < min_item: break
+				elif intersects(i, item) and i is not item: output.add(i)
+		return output
+	def __contains__(self, item):
+		if self.leaf_node: return False
+		return item in self.by_left_extent or item in self.left or item in self.right
+	def __len__(self):
+		if self.leaf_node: return 0
+		return len(self.left) + len(self.right) + len(self.by_left_extent)
+
+
 # Linear Sort Search (on the x-axis)
-###
 class SortSearchList(list):
 	""" A data structure for fast collision detection, which has an optimization over brute-force.
 
@@ -204,6 +437,9 @@ class SortSearchList(list):
 
 	WARNING: This does NOT handle inverted shapes correctly. I'm not even sure if that's possible.
 	CRIPES THIS IS SO BROKEN
+
+	This collision detector only works if you run every object through it - in other words, if you only test some portion of your world against this structure,
+	  it won't find some collisions. You have to test every object *in* this structure against this structure.
 	"""
 	def __init__(self, input_list=None):
 		list.__init__(self)
