@@ -120,8 +120,8 @@ class TheScreen(object):
 		depth = 150
 		h = -1000
 		for i in range(-10, 10):
-			self.batch_addcomponent( ObstacleLine(self, location=v(i*wavelength, h), endpoint=v((i+0.5)*wavelength, h+depth), thick=10), static=True )
-			self.batch_addcomponent( ObstacleLine(self, location=v((i+0.5)*wavelength, h+depth), endpoint=v((i+1)*wavelength, h), thick=10), static=True )
+			self.batch_addcomponent( ObstacleLine(self, location=v(i*wavelength, h), endpoint=v((i+0.5)*wavelength, h+depth), thick=20), static=True )
+			self.batch_addcomponent( ObstacleLine(self, location=v((i+0.5)*wavelength, h+depth), endpoint=v((i+1)*wavelength, h), thick=20), static=True )
 
 		# The scoop.
 		#self.batch_addcomponent( ObstacleLine(self, location=v(2000, 0), endpoint=v(500, -1500), thick=20), static=True )
@@ -222,13 +222,6 @@ class TheScreen(object):
 		# And now they're updated, we do collision detection.
 		colset = set()
 		
-		# There's something very fishy going on.
-		# TODO: This isn't actually checking for collisions robustly.
-		# Given that static objects never need to collide with one another, testing for collisions from nonstatics to everything
-		# should produce the same output as testing collisions from everything to everything. However, when we tried that, it produced
-		# inconsistent collision results between static and nonstatic objects.
-
-		# Part of the problem is that the SortSearchList doesn't handle inverted objects correctly - and may not in fact be capable of this.
 		for obj in self.nonstatic_objects:
 			colset = self.coltree.collisions(obj) 
 			for col in colset:
@@ -431,8 +424,8 @@ class Spawner(object):
 		self.shape.drawtype = "fill"
 
 		self.spawn_count = 0
-		self.spawn_count_max = 20 # Maximum number that will spawn before the spawner dies.
-		self.spawn_chance = 0.01 # chance of spawning, per frame.
+		self.spawn_count_max = 40 # Maximum number that will spawn before the spawner dies.
+		self.spawn_chance = 0.05 # chance of spawning, per frame.
 		self.maxvelocity = 1000
 	def collide(self,other): pass
 	def update(self, timestep):

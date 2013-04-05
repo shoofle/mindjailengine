@@ -2,18 +2,17 @@ mindjailengine
 ==============
 
 A relatively simple game engine in python. Thanks, I'm shoofle.
+---------------------------------------------------------------
 
 This is a 2D, physics-y game engine in python. At present, it uses the [pyglet](http://www.pyglet.org/) library for windowing and opengl bindings, although this might change sometime soon in favor of something more frequently updated. For the moment, graphics are limited to vectory stuff, because it's all basically hand-crafted opengl loops. That's still in the works, but I like the vector look. Not sure where that's going to go.
 
 In order to use this, you'll need python (2.6, I think? 2.7? Unfortunately, it's not up to python3 yet :( I hope to make that happen!) and pyglet; I installed pyglet using [pip](https://pypi.python.org/pypi/pip) (`pip install pyglet`). When you've got pyglet in place, just do `python mindjailengine.py` and it'll go. Not too much to it.
 
+Unfortunately, pyglet is ailing and unhappy and doesn't play nice with 64-bit machines, so you might need 32-bit python in order to run this. Replacing pyglet is on my list of things to do!
+
 --------
 
-Probably the coolest single _part_ of this endeavor is my (hand-crafted!) QuadTree for collision detection. Of course, hand-crafted means it's far from sterling quality, but hey, it's sped up my game. The basic idea of a quadtree is to recursively subdivide the world into quadrants, so that you know that an object in one quadrant can't touch objects in another. There are some issues, and I've implemented some... unusual solutions, but it's all good.
-
-The sort-search list is a mildly interesting list which demonstrates the folly of human hubris; do not trust it. It is broken. I feel betrayed.
-
-And before you ask, yes, I have done some tests, and both of these have noticeably improved my runtimes over a brute-force solution :)
+Much of my work on this project (certainly unreasonably much of it) is recorded in `collision\_structures.py`. There you can see a wide array (hah!) of data structures I've developed for the purpose of speeding up collision detection. Fast collision detection is a challenge for any system of interacting dynamic objects, and it's certainly made no easier by python's... friendly and un-stressed nature. At the moment I am fairly well satisfied with the spatial hashing algorithm I've implemented in the SpatialGrid class, and I hope to move to other things promptly.
 
 --------
 
