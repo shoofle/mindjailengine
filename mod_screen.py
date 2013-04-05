@@ -58,9 +58,11 @@ class TheScreen(object):
 	def __init__(self, pwin):
 		""" Initialize the gamescreen. pwin is the parent window. """
 		self.pwin = pwin
-		self.killcount = 0
 		self.width = pwin.width
 		self.height= pwin.height
+		self.draw_debug = False
+
+		self.killcount = 0
 
 		pyglet.gl.glEnable(pyglet.gl.GL_BLEND)
 		pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA,pyglet.gl.GL_ONE)
@@ -91,7 +93,7 @@ class TheScreen(object):
 		# and now, the things!
 
 		playerobj = self.batch_addcomponent( PlayerBall(self, location = v(0,0)), listeners=True)
-		self.batch_addcomponent( CameraFollower(self, latch=playerobj, spring=50, damping=10), collisions=False) # Doesn't need collisions.
+		self.batch_addcomponent( CameraFollower(self, latch=playerobj, spring=50, damping=10), collisions=False, priority=True) # Doesn't need collisions.
 
 		self.batch_addcomponent( FreeBall(self, location = v(0,-50)) )
 		self.batch_addcomponent( FreeBall(self, location = v(-100,0)) )
@@ -110,22 +112,28 @@ class TheScreen(object):
 		#self.batch_addcomponent( ObstacleBall(self, location = v(0,-800), rad=200) )
 		#self.batch_addcomponent( ObstacleBall(self, location = v(-300,-500), rad=100) )
 		#self.batch_addcomponent( ObstacleBall(self, location = v(200,300), rad=40) )
-		for i in range(40):
-			r = random.uniform(0,1000)
-			angle = random.random()*2*math.pi
-			position = v(0, -400) + v(r*math.cos(angle), r*math.sin(angle))
-			self.batch_addcomponent( ObstacleBall(self, location = position, rad=40), static=True )
+		for i in range(100):
+			position = v(random.uniform(-1,1)*4000, random.uniform(-1,1)*1000)
+			self.batch_addcomponent( ObstacleBall(self, location = position, rad=40), static=True, invisible=False)
+
+		wavelength = 600
+		depth = 150
+		h = -1000
+		for i in range(-10, 10):
+			self.batch_addcomponent( ObstacleLine(self, location=v(i*wavelength, h), endpoint=v((i+0.5)*wavelength, h+depth), thick=10), static=True )
+			self.batch_addcomponent( ObstacleLine(self, location=v((i+0.5)*wavelength, h+depth), endpoint=v((i+1)*wavelength, h), thick=10), static=True )
+
+		# The scoop.
+		#self.batch_addcomponent( ObstacleLine(self, location=v(2000, 0), endpoint=v(500, -1500), thick=20), static=True )
+		#self.batch_addcomponent( ObstacleLine(self, location=v(-2000, 0), endpoint=v(-500, -1500), thick=20), static=True )
+		#self.batch_addcomponent( ObstacleLine(self, location=v(-1000, -1500), endpoint=v(1000, -1500), thick=20), static=True )
+
+		# The A-frame roof.
+		#self.batch_addcomponent( ObstacleLine(self, location=v(0, 1500), endpoint=v(-1000, -150),thick = 20), static=True )
+		#self.batch_addcomponent( ObstacleLine(self, location=v(0, 1500), endpoint=v(1000, -150),thick = 20), static=True )
 
 
-		self.batch_addcomponent( ObstacleLine(self, location=v(2000, 0), endpoint=v(500, -1500), thick=20), static=True )
-		self.batch_addcomponent( ObstacleLine(self, location=v(-2000, 0), endpoint=v(-500, -1500), thick=20), static=True )
-		self.batch_addcomponent( ObstacleLine(self, location=v(-1000, -1500), endpoint=v(1000, -1500), thick=20), static=True )
-
-		self.batch_addcomponent( ObstacleLine(self, location=v(0, 1500), endpoint=v(-1000, -150),thick = 20), static=True )
-		self.batch_addcomponent( ObstacleLine(self, location=v(0, 1500), endpoint=v(1000, -150),thick = 20), static=True )
-
-
-		self.batch_addcomponent( InvertBall(self, location = v(0,1000), rad=2600), static=True )
+		#self.batch_addcomponent( InvertBall(self, location = v(0,1000), rad=2600), static=True )
 
 		###########
 		# And now the list of components is done.
@@ -133,9 +141,9 @@ class TheScreen(object):
 
 		self.coltree.extend(self.collision_objects)
 
-		self.constants = {'drag':10, 'gravity':5000, 'elasticity':0.7, 'friction':0.9, 'displace':0.5}
+		self.constants = {'drag':10, 'gravity':v(0,-5000), 'elasticity':0.7, 'friction':0.9, 'displace':0.3}
 
-	def batch_addcomponent(self, thing, physics=True, collisions=None, static=None, priority=False, listeners=False):
+	def batch_addcomponent(self, thing, physics=True, collisions=None, static=None, priority=False, listeners=False, invisible=False):
 		"""Add a number of components to the lists of objects with various qualities, but do not yet add them to the collision structure.
 
 		This method is supposed to be used to add a large number of objects at once - and then followed up by a call that adds
@@ -155,10 +163,11 @@ class TheScreen(object):
 				self.collision_objects.append(thing)
 				if static: self.static_objects.append(thing)
 				else: self.nonstatic_objects.append(thing)
-			if priority: self.priority.append(thing) # Objects which have priority drawing (these are drawn first).
-			else:
-				self.nonpriority.append(thing)	# Objects which do not have priority drawing.
-				self.nonpriority.sort(key = lambda t: t.z if hasattr(t,"z") else 0)
+			if not invisible:
+				if priority: self.priority.append(thing) # Objects which have priority drawing (these are drawn first).
+				else:
+					self.nonpriority.append(thing)	# Objects which do not have priority drawing.
+					self.nonpriority.sort(key = lambda t: t.z if hasattr(t,"z") else 0)
 			if listeners: self.listeners.append(thing)
 		except AttributeError as e: print("There was some kind of problem building the list of objects in the world. \n{}".format(e))
 		finally: return thing
@@ -170,8 +179,9 @@ class TheScreen(object):
 
 	def killcountincrease(self): # increment the kill count!
 		self.killcount = self.killcount + 1
-	def pause(self):
-		self.pwin.thescreen = PauseScreen(self.pwin, self)
+
+	def pause(self): self.pwin.thescreen = PauseScreen(self.pwin, self) # TODO: Remove this. Why is this here?
+
 	def draw(self):
 		""" Instructs each component to draw itself, starting with the components in the priority set. """
 		pyglet.gl.glClear(pyglet.gl.GL_COLOR_BUFFER_BIT | pyglet.gl.GL_DEPTH_BUFFER_BIT)
@@ -180,16 +190,19 @@ class TheScreen(object):
 		pyglet.gl.glPushMatrix()
 		for thing in self.priority:
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
+			if self.draw_debug and hasattr(thing, 'draw_debug'): thing.draw_debug()
 			thing.draw()
 		for thing in self.nonpriority:
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
+			if self.draw_debug and hasattr(thing, 'draw_debug'): thing.draw_debug()
 			thing.draw()
+		if self.draw_debug and hasattr(self.coltree,'draw'): self.coltree.draw()
 		pyglet.gl.glPopMatrix()
 
 	def update(self, timestep):
 		"""Update the state of each component in the game world."""
 
-		dead_things = [t for t in self.components if t.dead]
+		dead_things = (t for t in self.components if t.dead)
 
 		for thing in dead_things:
 			self.components.remove(thing)
@@ -217,7 +230,7 @@ class TheScreen(object):
 
 		# Part of the problem is that the SortSearchList doesn't handle inverted objects correctly - and may not in fact be capable of this.
 		for obj in self.nonstatic_objects:
-			colset = self.coltree.collisions(obj) or set()
+			colset = self.coltree.collisions(obj) 
 			for col in colset:
 				obj.collide(col)
 				col.collide(obj)
@@ -227,20 +240,16 @@ class TheScreen(object):
 		if symbol == key.P: # If they pressed p, we want to pause.
 			self.pwin.thescreen = PauseScreen(self.pwin, self)
 		if symbol == key.R: print(self.coltree.status_rep(''))
-		for thing in self.listeners:
-			thing.on_key_press(symbol, modifiers)
+		if symbol == key.D: self.draw_debug = not self.draw_debug
+		for thing in self.listeners: thing.on_key_press(symbol, modifiers)
 	def on_key_release(self, symbol, modifiers):
-		for thing in self.listeners:
-			thing.on_key_release(symbol, modifiers)
+		for thing in self.listeners: thing.on_key_release(symbol, modifiers)
 	def on_mouse_press(self, x, y, button, modifiers):
-		for thing in self.listeners:
-			thing.on_mouse_press(x, y, button, modifiers)
+		for thing in self.listeners: thing.on_mouse_press(x, y, button, modifiers)
 	def on_mouse_drag(self, x, y, dx, dy, button, modifiers):
-		for thing in self.listeners:
-			thing.on_mouse_drag(x, y, dx, dy, button, modifiers)
+		for thing in self.listeners: thing.on_mouse_drag(x, y, dx, dy, button, modifiers)
 	def on_mouse_motion(self, x, y, dx, dy):
-		for thing in self.listeners:
-			thing.on_mouse_motion(x, y, dx, dy)
+		for thing in self.listeners: thing.on_mouse_motion(x, y, dx, dy)
 
 class PauseScreen(object): 
 	""" A game screen thingy for when the game is paused. """
@@ -248,17 +257,16 @@ class PauseScreen(object):
 		self.pwin = pwin
 		self.childscreen = childscreen # The screen which paused us. pressing P will return us to this screen.
 
-		self.pdep = False
-		self.preptoexit = False
+		self.prepared_to_exit = False
 		self.pausetime = 0
 
 		self.top_text = "THE GAME! IT'S PAUSED!\nPress 'p' to unpause.\nKills: {0}"
-		self.bottom_text = "Don't forget: \nz to fire bullets! \nb to fire bombs! \nwasd to move! \nesc to exit!"
+		self.bottom_text = "Don't forget: \nz to fire bullets! \nb to fire bombs! \narrows to move! \nesc to exit! \n\nd to activate debug drawing!"
 
 		self.top_text_label = text.Label(
 				self.top_text.format(self.childscreen.killcount), \
 				'Arial', 24, \
-				color = (0, 0, 0, 127),\
+				color = (0, 0, 0, 200),\
 				x = self.pwin.width/2, y = self.pwin.height/2 ,\
 				anchor_x="center", anchor_y="center", \
 				width=3*self.pwin.width/4, height=3*self.pwin.height/4, \
@@ -267,36 +275,27 @@ class PauseScreen(object):
 		self.bottom_text_label = text.Label( \
 				self.bottom_text, \
 				'Arial', 24, \
-				color = (25, 25, 25, 127), \
-				x = self.pwin.width/2, y = self.pwin.height, \
+				color = (0, 0, 0, 200), \
+				x = self.pwin.width/2, y = self.pwin.height/4, \
 				anchor_x="center", anchor_y="center", \
 				width=3*self.pwin.width/4, height=3*self.pwin.height/4, \
 				multiline=1 \
 			)
-	def update(self, timestep):
-		self.pausetime += timestep
-		self.top_text_label.text = self.top_text.format(self.childscreen.killcount)
-		if self.preptoexit and self.pausetime > 1:
-			if not self.pdep:
-				self.pausetime = 0
-				self.pwin.thescreen = self.childscreen
-				self.delete()
-		if self.pausetime < 1:
-			self.preptoexit = False
-		if self.pdep:
-			self.preptoexit = True
+	def update(self, timestep): self.pausetime += timestep
 	def draw(self):
 		self.childscreen.draw()
 		self.top_text_label.draw()
 		self.bottom_text_label.draw()
-	def delete(self):
-		del self
-
 	# Listeners.
 	def on_key_press(self, symbol, modifiers):
-		if symbol == key.P: self.pdep = True
+		if symbol == key.P: 
+			if self.pausetime > 1:
+				self.prepared_to_exit = True
 	def on_key_release(self, symbol, modifiers):
-		if symbol == key.P: self.pdep = False
+		if symbol == key.P: 
+			if self.prepared_to_exit:
+				self.pwin.thescreen = self.childscreen
+				del self
 	def on_mouse_press(self, x, y, button, modifiers):pass
 	def on_mouse_drag(self, x, y, dx, dy, button, modifiers):pass
 	def on_mouse_motion(self, x, y, dx, dy):pass
@@ -308,12 +307,10 @@ class PauseScreen(object):
 ################################################
 ### Things which are reused by many objects. ###
 def initialize_habitats(self, pscreen):
-	""" Initialize the habitat of this object.
-	"""
+	""" Initialize the habitat of this object."""
 	self.pscreen = pscreen
-
 def initialize_states(self, dead=False, tangible=True, immobile=False, test_for_collision=True):
-	""" Initialize the state variables: whether the object is 
+	""" Initialize state variables.
 	dead - if the 'dead' flag is set, then it will be removed next chance we get.
 	tangible - if the 'tangible' value is truthy, it will physics-collide with other objects.
 		not yet implemented: if tangible matches another object, we can collide with that object.
@@ -363,7 +360,7 @@ def phys_collide(self,other):
 		self.pos = self.pos + vector
 def update_world(self,timestep):
 	""" The part of the update cycle where the various effects of the world act. """
-	self.acc = self.acc + timestep*self.pscreen.constants['gravity']*(v(0,-1))
+	self.acc = self.acc + timestep*self.pscreen.constants['gravity']
 	self.acc = self.acc - timestep*self.pscreen.constants['drag']*self.vel
 def update_inertia(self,timestep):
 	""" Update position and velocity in the standard way. """
@@ -378,7 +375,7 @@ def update_inertia(self,timestep):
 #############################################
 
 class FreeBall(object):
-	""" A basic ball object. It's a circle! Woo."""
+	""" A circular object that can move and bounce freely. It's a circle! Woo."""
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self)
@@ -389,6 +386,7 @@ class FreeBall(object):
 		update_inertia(self,timestep)
 	def draw(self): self.shape.draw(self.pos)
 class ObstacleBall(object):
+	""" A ball fixed in space. """
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, immobile=True)
@@ -397,6 +395,7 @@ class ObstacleBall(object):
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
 class ObstacleLine(object):
+	""" A line, potentially with rounded ends, fixed in space. """
 	def __init__(self, pscreen, location=v(0,0), endpoint=v(0,1), thick = 0,*args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, immobile=True)
@@ -408,6 +407,7 @@ class ObstacleLine(object):
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
 class InvertBall(object):
+	""" An inverted circle, suitable for use as the boundary of a level. """
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, immobile=True)
@@ -417,13 +417,12 @@ class InvertBall(object):
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
 
-
-
 ###################
 ### Opponents!? ###
 ###################
 
 class Spawner(object):
+	""" A circular area that spawns EnemyBalls until it reaches the max, with chance spawn_chance every frame. """
 	def __init__(self, pscreen, location=v(0,0), rad=100, z=0.25, *args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, test_for_collision=False)
@@ -453,7 +452,6 @@ class Spawner(object):
 	def draw(self): 
 		pyglet.gl.glColor4f(0.6,0.0,0.6,0.4)
 		self.shape.draw(self.pos, self.z)
-			
 class EnemyBall(object):
 	""" An enemy ball, which can be destroyed by bullets. """
 	def __init__(self, pscreen, location=v(0,0), rad=30, *args, **kwargs):
@@ -472,14 +470,13 @@ class EnemyBall(object):
 		pyglet.gl.glColor3f(0.5,0.5,0.5)
 		self.shape.draw(self.pos)
 
-
-
 ################################
 ### Player-related stuff!    ###
 ### Player, Bullets, Camera. ###
 ################################
 
 class PlayerBall(object):
+	""" The player. Oh my, but this is an overbuilt class. Oh well. """
 	def __init__(self,pscreen, location=v(0,0), *args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self)
@@ -610,8 +607,8 @@ class BombExplosion(object):
 		pyglet.gl.glColor4f(1.0-self.time/self.time_to_live, 0*self.time/self.time_to_live, 0*self.time/self.time_to_live, 1.0-self.time/self.time_to_live)
 		self.shape.draw(self.pos)
 
-
 class CameraFollower(object):
+	""" This object follows the latch and defines the drawing frustrum and basically sets up cameras. """
 	def __init__(self, pscreen, latch=None, spring=30, damping=2):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, dead=False, tangible=False, immobile=False)

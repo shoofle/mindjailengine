@@ -1,4 +1,5 @@
 from vectors import v
+import pyglet
 import math
 import random
 import bisect
@@ -26,6 +27,9 @@ def intersects(a, b):
 	if a.test_for_collision and b.test_for_collision:
 		return shapes.intersect(a,b)
 
+def override_intersects(a, b):
+	return a is not b and x_min(a) < x_max(b) and x_max(a) > x_min(b) and y_min(a) < y_max(b) and y_max(a) > y_min(b)
+
 class DataStructure(object):
 	def __init__(self, items): pass
 	def collisions(self, item): return set()
@@ -35,58 +39,146 @@ class DataStructure(object):
 	def __contains__(self, item): pass
 	def __len__(self): return 0
 
+class MultistoreSpatialGrid(object):
+	"""A loose spatial grid. Contains a dict mapping tuples to a secondary container. Indexes objects into *all* the grid squares they occupy.
 
-class SpatialGrid(object):
-	"""A loose spatial grid. Contains a dict mapping tuples to a secondary container.
-
-	When you test to see if an object collides, you have to check a few grid squares around where it belongs, to make sure you get possible overlaps. 
-	This structure relies on the supposition that the objects being stored in it are smaller than max_size - so all the objects they can collide with
-	  are either within the same square as them, or in one of the neighboring squares.
+	When you test to see if an object collides, you have to check a few grid squares around where it belongs, 
+	  to make sure you get possible overlaps. 
+	This structure relies on the supposition that the objects being stored in it are smaller than max_size - 
+	  so all the objects they can collide with are either within the same square as them, or in one of the neighboring squares.
 	"""
 	def __init__(self, items=None, max_size=50):
 		self.grid_size = max_size
 		self.grid = dict()
-		if self.grid_size > 120:
-			self.secondary = BruteList()
-		else:
-			self.secondary = BSPTree()
-	def too_big(self, item): return max(x_max(item)-x_min(item), y_max(item)-y_min(item)) > self.grid_size
+		self.count = 0
+		if max_size > 1000: self.secondary = BSPTree()
+		else: self.secondary = MultistoreSpatialGrid(max_size = max_size*2) # SpatialGrid(max_size=self.grid_size*2)
+	def too_big(self, item): return max(x_max(item)-x_min(item), y_max(item)-y_min(item)) > self.grid_size/2
+	def grid_squares(self, item):
+		min_x, min_y = int(x_min(item)/self.grid_size) - (1 if x_min(item)<0 else 0), int(y_min(item)/self.grid_size) - (1 if y_min(item)<0 else 0)
+		max_x, max_y = int(x_max(item)/self.grid_size) - (1 if x_max(item)<0 else 0), int(y_max(item)/self.grid_size) - (1 if y_max(item)<0 else 0)
+		return [(i,j) for i in range(min_x-1, max_x+2) for j in range(min_y-1, max_y+2)]
 	def collisions(self, item):
-		location = int(item.pos.x/self.grid_size), int(item.pos.y/self.grid_size)
-		grid_squares = ((i,j) for i in range(location[0]-1, location[0]+1) for j in range(location[1]-1, location[1]+1) if (i,j) in self.grid)
-		return reduce(lambda s, t: s | self.grid[t].collisions(item), grid_squares, set()) | self.secondary.collisions(item)
+		output = self.secondary.collisions(item)
+		for l in self.grid_squares(item):
+			if l in self.grid:
+				output = output | self.grid[l].collisions(item)
+		return output
 	def append(self, item):
-		if self.too_big(item):
-			self.secondary.append(item)
+		if self.too_big(item): self.secondary.append(item)
+		else: 
+			self.count = self.count + 1
+			for l in self.grid_squares(item): 
+				if l not in self.grid: self.grid[l] = BruteList()
+				self.grid[l].append(item)
+	def extend(self, items): 
+		self.secondary.extend([i for i in items if self.too_big(i)])
+		for i in items:
+			if not self.too_big(i): self.append(i)
+	def remove(self, item):
+		if self.too_big(item): 
+			self.secondary.remove(item)
 		else:
-			location = int(item.pos.x/self.grid_size), int(item.pos.y/self.grid_size)
-			if location not in self.grid: self.grid[location] = BruteList()
+			self.count = self.count - 1
+			for l, g in self.grid.items():
+				if item in g: g.remove(item)
+				if len(g) is 0: del self.grid[l]
+	def __contains__(self, item):
+		return any(item in self.grid[l] for l in self.grid_squares(item) if l in self.grid) or any(item in self.grid[l] for l in self.grid)
+	#	for l in self.grid_squares(item):
+	#		if l in self.grid and item in self.grid[l]: return True
+	#	return any(item in self.grid[l] for l in self.grid)
+	def __len__(self): return self.count + len(self.secondary)
+
+class SpatialGrid(object):
+	"""A loose spatial grid. Contains a dict mapping tuples to a secondary container. Indexes objects to the grid square containing their center.
+
+	When you test to see if an object collides, you have to check a few grid squares around where it belongs, 
+	  to make sure you get possible overlaps. 
+	This structure relies on the supposition that the objects being stored in it are smaller than max_size - 
+	  so all the objects they can collide with are either within the same square as them, or in one of the neighboring squares.
+	"""
+	def __init__(self, items=None, max_size=100):
+		self.grid_size = max_size
+		self.grid = dict()
+		self.vlist = pyglet.graphics.vertex_list(4, 'v3f')
+		self.vlist.vertices[0:3] = [0, 0, 0]
+		self.vlist.vertices[3:6] = [max_size, 0, 0]
+		self.vlist.vertices[6:9] = [max_size, max_size, 0]
+		self.vlist.vertices[9:12] = [0, max_size, 0]
+		self.color = random.random(), random.random(), random.random()
+		if max_size > 1000: self.secondary = BSPTree()
+		else: self.secondary = SpatialGrid(max_size=self.grid_size*2) # SpatialGrid(max_size=self.grid_size*2)
+	def too_big(self, item): 
+		""" Returns true if the object is too big to fit in this grid. """
+		return max(x_max(item)-x_min(item), y_max(item)-y_min(item)) >= self.grid_size
+	def grid_square(self, item): 
+		""" Return the grid square occupied by item. """
+		return int(math.floor(item.pos.x/self.grid_size)), int(math.floor(item.pos.y/self.grid_size))
+	def grid_space(self, item): 
+		""" Returns a generator for the grid squares the object might be contacting. Includes neighboring grid squares.. """
+		min_x, min_y = int(math.floor(x_min(item)/self.grid_size)), int(math.floor(y_min(item)/self.grid_size))
+		max_x, max_y = int(math.floor(x_max(item)/self.grid_size)), int(math.floor(y_max(item)/self.grid_size))
+		return ((i,j) for i in range(min_x-1, max_x+2) for j in range(min_y-1, max_y+2) if (i,j) in self.grid)
+	def collisions(self, item):
+		""" Returns all objects colliding with this one. """
+		return reduce(lambda s, t: s | self.grid[t].collisions(item), self.grid_space(item), self.secondary.collisions(item))
+	def append(self, item):
+		""" Add item to the spatial grid. If it is too big, it will get bumped up to the secondary data structure. """
+		if self.too_big(item): self.secondary.append(item)
+		else:
+			location = self.grid_square(item)
+			if location not in self.grid: self.grid[location] = BruteList() # This decides the secondary data structure.
 			self.grid[location].append(item)
 	def extend(self, items): 
 		self.secondary.extend([i for i in items if self.too_big(i)])
 		for i in items:
 			if not self.too_big(i): self.append(i)
 	def remove(self, item):
-		location = int(item.pos.x/self.grid_size), int(item.pos.y/self.grid_size)
 		if self.too_big(item) and item in self.secondary:
-			self.secondary.remove(item)				
-		elif location in self.grid and item in self.grid[location]:
-			self.grid[location].remove(item)
-			if len(self.grid[location]) is 0: 
-				del self.grid[location]
-		else: 
-			for l in self.grid:
-				if item in self.grid[l]:
-					self.grid[l].remove(item)
-					if len(self.grid[l]) is 0: 
-						del self.grid[l]
-						break
+			self.secondary.remove(item)
+		else:
+			location = self.grid_square(item)
+			if location in self.grid and item in self.grid[location]:
+				self.grid[location].remove(item)
+				if len(self.grid[location]) is 0: del self.grid[location]
+			else: 
+				for l in self.grid.keys():
+					if item in self.grid[l]:
+						self.grid[l].remove(item)
+					if len(self.grid[l]) is 0: del self.grid[l]
 	def __contains__(self, item):
-		location = int(item.pos.x/self.grid_size), int(item.pos.y/self.grid_size)
+		location = self.grid_square(item)
+		if self.too_big(item) and item in self.secondary: return True
 		if location in self.grid and item in self.grid[location]: return True
-		return any(item in g for g in self.grid.itervalues())
-	def __len__(self): 
-		return len(self.secondary) + sum(map(lambda x: len(self.grid[x]), self.grid))
+		return any(item in self.grid[l] for l in self.grid)
+	def __len__(self): return len(self.secondary) + sum(map(lambda x: len(self.grid[x]), self.grid))
+	def status_rep(self, indent=''):
+		num_in_grid = len(self) - len(self.secondary)
+		num_off_grid = len(self.secondary)
+		if num_in_grid is 0: return "Nada.\n{}\n\n".format(self.secondary.status_rep() if len(self.secondary) > 0 else '')
+		num_grid_squares = len(self.grid)
+		ave_occupancy = 1.0*num_in_grid/num_grid_squares
+		neighbors = 0
+		n_max = 0
+		for i,j in self.grid:
+			n_here = 0
+			for t,r in ((u,v) for u in range(i-1, i+2) for v in range(j-1, j+2) if (u,v) in self.grid):
+				n_here += len(self.grid[(t,r)])
+			n_max = max(n_here,n_max)
+			neighbors += n_here
+		ave_neighbors = 1.0*neighbors/num_in_grid
+
+		return "Number in the grid: {}\nNumber off the grid: {}\nNumber of grid squares: {}\nAverage occupancy of grid squares: {}\nAverage number of neighbors: {}\nMax neighbors: {}\nTotal Neighbors: {}\n\n".format(num_in_grid, num_off_grid, num_grid_squares, ave_occupancy, ave_neighbors, n_max, neighbors) + (self.secondary.status_rep() if len(self.secondary) > 0 else '')
+
+	def draw(self):
+		for x,y in self.grid:
+			pyglet.gl.glPushMatrix()
+			pyglet.gl.glTranslatef(x*self.grid_size, y*self.grid_size, 0)
+			pyglet.gl.glColor3f(self.color[0], self.color[1], self.color[2])
+			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+			pyglet.gl.glPopMatrix()
+		if hasattr(self.secondary, 'draw'): self.secondary.draw()
 
 class BSPTree(object):
 	"""This is a Binary Space Partitioning tree, which at every level divides space into two half-planes.
@@ -108,7 +200,7 @@ class BSPTree(object):
 			e = x_min, x_max
 
 		if self.height <= MAX_DEPTH+1:
-			self.left, self.center, self.right = QuadTree(height = self.height + 1), BruteList(), QuadTree(height = self.height + 1)
+			self.left, self.center, self.right = BSPTree(height=self.height+1), BruteList(), BSPTree(height=self.height+1)
 		else:
 			self.left, self.center, self.right = None, BruteList(), None
 		
@@ -334,8 +426,9 @@ class BruteList(list):
 	I wrote this when I realized that the SortSearchList doesn't actually *work*, and I think I'm going to leave it here, because I like
 	  that the way I've structured my classes meant that implementing a brute-force collision checker involved two new lines and one reference
 	  changed (in QuadTree.__init__). Simplicity! Also, so straightforward. I feel good about this.
+	You *are* the brute squad.
 	"""
-	def collisions(self, item): return set(x for x in self if x is not item and intersects(x, item))
+	def collisions(self, item): return set(x for x in self if x is not item and override_intersects(x, item))
 
 class IntervalTree(object):
 	"""A tree for storing intervals along some axis.
