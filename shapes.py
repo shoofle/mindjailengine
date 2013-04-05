@@ -189,7 +189,12 @@ class Line(object):
 		if self.thickness is not 0:
 			pyglet.gl.glRotatef(self.angle*180.0/math.pi - 90, 0.0, 0.0, 1.0)
 
-		if self.drawtype == "points" :
+		if self.drawtype is "outlined":
+			pyglet.gl.glColor3f(1.0,1.0,1.0)
+			self.vlist.draw(pyglet.gl.GL_POLYGON)
+			pyglet.gl.glColor3f(0.0,0.0,0.0)
+			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+		elif self.drawtype == "points" :
 			self.vlist.draw(pyglet.gl.GL_POINTS)
 		elif self.drawtype == "lines" :
 			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
@@ -227,7 +232,12 @@ class Circle(object):
 		pyglet.gl.glTranslatef(location.x,location.y,z)
 		pyglet.gl.glScalef(self.rad,self.rad,1.0)
 		#pyglet.gl.glRotatef(self.rot, 0, 0, 1)
-		if self.drawtype == "points" :
+		if self.drawtype is "outlined":
+			pyglet.gl.glColor3f(1.0,1.0,1.0)
+			self.vlist.draw(pyglet.gl.GL_POLYGON)
+			pyglet.gl.glColor3f(0.0,0.0,0.0)
+			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+		elif self.drawtype == "points" :
 			self.vlist.draw(pyglet.gl.GL_POINTS)
 		elif self.drawtype == "lines" :
 			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)

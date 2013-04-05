@@ -8,6 +8,7 @@ import random
 import math
 
 import shapes
+import background
 from vectors import v
 
 import collision_structures
@@ -137,6 +138,8 @@ class TheScreen(object):
 
 		#self.batch_addcomponent( InvertBall(self, location = v(0,1000), rad=2600), static=True )
 
+		self.batch_addcomponent( background.Background(self), static=True, collisions=False, priority=True )
+
 		###########
 		# And now the list of components is done.
 		###########
@@ -194,10 +197,16 @@ class TheScreen(object):
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
 			if self.draw_debug and hasattr(thing, 'draw_debug'): thing.draw_debug()
 			thing.draw()
-		for thing in self.coltree.collisions_with_rect(self.camera_rect):
+		for thing in sorted(self.coltree.collisions_with_rect(self.camera_rect), key=lambda j: j.pos.x):
+		#for thing in self.nonpriority:
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
 			if self.draw_debug and hasattr(thing, 'draw_debug'): thing.draw_debug()
 			thing.draw()
+		g = (t for t in self.nonpriority if t not in self.coltree)
+		for b in g: 
+			pyglet.gl.glColor3f(0.0,0.0,0.0)
+			if self.draw_debug and hasattr(b, 'draw_debug'): b.draw_debug()
+			b.draw()
 		if self.draw_debug and hasattr(self.coltree,'draw'): self.coltree.draw()
 		pyglet.gl.glPopMatrix()
 
@@ -333,7 +342,7 @@ def initialize_attributes(self, pos=v(0,0), vel=v(0,0), acc=v(0,0), r=20, shape=
 
 	self.rad = r
 	
-	if shape is None: self.shape = shapes.Circle(rad=self.rad, drawtype="lines", invert=0, **kwargs)
+	if shape is None: self.shape = shapes.Circle(rad=self.rad, invert=0, **kwargs)
 	else: self.shape = shape
 def phys_collide(self,other):
 	""" Standard collision response. Reflect our velocity along the collision line thing.
@@ -375,6 +384,7 @@ class FreeBall(object):
 		initialize_habitats(self,pscreen)
 		initialize_states(self)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
+		self.shape.drawtype = "outlined"
 	def collide(self,other): phys_collide(self,other)
 	def update(self,timestep):
 		update_world(self,timestep)
@@ -386,6 +396,7 @@ class ObstacleBall(object):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
+		self.shape.drawtype="outlined"
 	def collide(self,other): pass
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
@@ -398,6 +409,7 @@ class ObstacleLine(object):
 		self.start = self.pos
 		self.end = endpoint
 		self.shape = shapes.Line(endpoint - self.pos, thickness = thick)
+		self.shape.drawtype="outlined"
 	def collide(self,other): pass
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
@@ -478,15 +490,6 @@ class PlayerBall(object):
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=15)
 		self.z=0
 
-		#self.templatetext = "Our hero, L&G!:\n%f\t%f\n%s"
-		#self.labelthing = text.Label( \
-		#		(self.templatetext) % (0, 0, self.ftext) , \
-		#		'Arial', 12, color=(0,0,0,255), \
-		#		x = 3*self.pscreen.pwin.width/4, y = 1*self.pscreen.pwin.height/4, \
-		#		anchor_x = "left" , anchor_y = "top" , \
-		#		width = self.pscreen.pwin.width/4 , height = self.pscreen.pwin.height/4 , multiline = 1 \
-		#	)
-
 		self.thrust = 7500
 		self.thrustdir = v(0,0)
 		self.player = True
@@ -509,7 +512,7 @@ class PlayerBall(object):
 		if abs(self.vel) == 0: direct = v(0,1000)
 		else: direct = 1000*self.vel.unit()
 		newlaser = LaserLine(self.pscreen, self, location=self.pos, direction=direct)
-		self.pscreen.addcomponent(newlaser)
+		self.pscreen.addcomponent(newlaser, static=True)
 
 	def gotkill(self, other): self.pscreen.killcountincrease()
 	def collide(self,other): phys_collide(self,other)
