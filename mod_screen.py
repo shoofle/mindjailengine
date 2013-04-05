@@ -15,7 +15,7 @@ import collision_structures
 def intersecttest(a, b):
 	if a.test_for_collision and b.test_for_collision:
 		return shapes.intersect(a,b)
-collision_structures.intersects = intersecttest
+#collision_structures.intersects = intersecttest
 
 """ A class containing a module for the game. """
 class TheScreen(object):
@@ -63,6 +63,7 @@ class TheScreen(object):
 		self.draw_debug = False
 
 		self.killcount = 0
+		self.camera_rect = ((0,1),(0,1)) # (xmin, xmax), (ymin, ymax)
 
 		pyglet.gl.glEnable(pyglet.gl.GL_BLEND)
 		pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA,pyglet.gl.GL_ONE)
@@ -79,6 +80,7 @@ class TheScreen(object):
 		
 		# Set up all the different lists of objects in the world. These roughly correspond to managers! Sort of.
 		self.coltree = collision_structures.SpatialGrid()
+		#self.coltree = collision_structures.MultistoreSpatialGrid()
 		
 		self.physics_objects = []
 		self.collision_objects = []
@@ -180,19 +182,19 @@ class TheScreen(object):
 	def killcountincrease(self): # increment the kill count!
 		self.killcount = self.killcount + 1
 
-	def pause(self): self.pwin.thescreen = PauseScreen(self.pwin, self) # TODO: Remove this. Why is this here?
-
 	def draw(self):
 		""" Instructs each component to draw itself, starting with the components in the priority set. """
 		pyglet.gl.glClear(pyglet.gl.GL_COLOR_BUFFER_BIT | pyglet.gl.GL_DEPTH_BUFFER_BIT)
 		#pyglet.gl.glEnable(pyglet.gl.GL_DEPTH_TEST)
 		pyglet.gl.glClearColor(1.0,1.0,1.0,0.0)
 		pyglet.gl.glPushMatrix()
+
+		# TODO: Speed this up by not drawing things outside the window.
 		for thing in self.priority:
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
 			if self.draw_debug and hasattr(thing, 'draw_debug'): thing.draw_debug()
 			thing.draw()
-		for thing in self.nonpriority:
+		for thing in self.coltree.collisions_with_rect(self.camera_rect):
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
 			if self.draw_debug and hasattr(thing, 'draw_debug'): thing.draw_debug()
 			thing.draw()
@@ -225,13 +227,13 @@ class TheScreen(object):
 		for obj in self.nonstatic_objects:
 			colset = self.coltree.collisions(obj) 
 			for col in colset:
-				obj.collide(col)
-				col.collide(obj)
+				if shapes.intersect(obj, col):
+					obj.collide(col)
+					col.collide(obj)
 		# Done checking for/reacting to collisions!
 
 	def on_key_press(self, symbol, modifiers):
-		if symbol == key.P: # If they pressed p, we want to pause.
-			self.pwin.thescreen = PauseScreen(self.pwin, self)
+		if symbol == key.P: self.pwin.thescreen = PauseScreen(self.pwin, self)
 		if symbol == key.R: print(self.coltree.status_rep(''))
 		if symbol == key.D: self.draw_debug = not self.draw_debug
 		for thing in self.listeners: thing.on_key_press(symbol, modifiers)
@@ -254,7 +256,7 @@ class PauseScreen(object):
 		self.pausetime = 0
 
 		self.top_text = "THE GAME! IT'S PAUSED!\nPress 'p' to unpause.\nKills: {0}"
-		self.bottom_text = "Don't forget: \nz to fire bullets! \nb to fire bombs! \narrows to move! \nesc to exit! \n\nd to activate debug drawing!"
+		self.bottom_text = "Don't forget: \nz to fire bullets! \nx to fire lasers! \nc to fire bombs! \narrows to move! \nesc to exit! \n\nd to activate debug drawing!"
 
 		self.top_text_label = text.Label(
 				self.top_text.format(self.childscreen.killcount), \
@@ -315,7 +317,7 @@ def initialize_states(self, dead=False, tangible=True, immobile=False, test_for_
 	self.tangible = tangible
 	self.immobile = immobile
 	self.test_for_collision = test_for_collision
-def initialize_attributes(self, pos=v(0,0), vel=v(0,0), acc=v(0,0), r=20, shape=None, numpoints=60, **kwargs):
+def initialize_attributes(self, pos=v(0,0), vel=v(0,0), acc=v(0,0), r=20, shape=None, **kwargs):
 	""" Initialize various attributes of the physics-ness of the object.
 
 	This is like initializing a RigidBody component.
@@ -331,7 +333,7 @@ def initialize_attributes(self, pos=v(0,0), vel=v(0,0), acc=v(0,0), r=20, shape=
 
 	self.rad = r
 	
-	if shape is None: self.shape = shapes.Circle(numpoints=numpoints, rad=self.rad, drawtype="lines", invert=0, **kwargs)
+	if shape is None: self.shape = shapes.Circle(rad=self.rad, drawtype="lines", invert=0, **kwargs)
 	else: self.shape = shape
 def phys_collide(self,other):
 	""" Standard collision response. Reflect our velocity along the collision line thing.
@@ -503,6 +505,12 @@ class PlayerBall(object):
 		else: newbomb.vel = self.vel + 200*self.vel.unit()
 		self.pscreen.addcomponent(newbomb)
 
+	def fire_laser(self):
+		if abs(self.vel) == 0: direct = v(0,1000)
+		else: direct = 1000*self.vel.unit()
+		newlaser = LaserLine(self.pscreen, self, location=self.pos, direction=direct)
+		self.pscreen.addcomponent(newlaser)
+
 	def gotkill(self, other): self.pscreen.killcountincrease()
 	def collide(self,other): phys_collide(self,other)
 	def update(self,timestep):
@@ -520,7 +528,8 @@ class PlayerBall(object):
 		if symbol == key.LEFT: self.thrustdir = self.thrustdir + v(-1,0)
 		if symbol == key.RIGHT: self.thrustdir = self.thrustdir + v(1,0)
 		if symbol == key.Z: self.fire_bullet()
-		if symbol == key.B: self.fire_bomb()
+		if symbol == key.X: self.fire_laser()
+		if symbol == key.C: self.fire_bomb()
 	def on_key_release(self, symbol, modifiers):
 		if symbol == key.UP: self.thrustdir = self.thrustdir - v(0,2)
 		if symbol == key.DOWN: self.thrustdir = self.thrustdir - v(0,-1)
@@ -555,6 +564,31 @@ class BulletBall(object):
 		update_inertia(self,timestep)
 	def draw(self):
 		pyglet.gl.glColor3f(1.0,0.2,0.5)
+		self.shape.draw(self.pos)
+
+class LaserLine(object):
+	""" A laser beam! """
+	def __init__(self, pscreen, parent,location=v(0,0), direction=v(0,1000), *args, **kwargs):
+		initialize_habitats(self,pscreen)
+		initialize_states(self, tangible=False)
+		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0))
+		self.parent = parent
+		self.bullet = True
+		self.time_to_live = 0.5
+		self.time=0
+		self.shape=shapes.Line(direction)
+	def collide(self,other):
+		if other is self.parent: return
+		#if hasattr(other,"player") and other.player: return
+		if hasattr(other,"enemy") and other.enemy:
+			self.dead = True
+			self.parent.gotkill(other)
+	def update(self,timestep):
+		self.time += timestep
+		if self.time>self.time_to_live:
+			self.dead = True
+	def draw(self):
+		pyglet.gl.glColor3f(0.0,1.0-(self.time/self.time_to_live),0.0)
 		self.shape.draw(self.pos)
 class BombBall(object):
 	""" A bomb, which explodes after a certain amount of time to throw things flying. """
@@ -648,3 +682,6 @@ class CameraFollower(object):
 		pyglet.gl.glTranslatef( self.pscreen.pwin.width/2, self.pscreen.pwin.height/2, 0.0 ) # Take the center of the parent window as the origin.
 		pyglet.gl.glFrustum(-1.0, 1.0, -1.0, 1.0, 0.5, 20.0) # Set up the frustrum
 		pyglet.gl.glTranslatef( -self.pos.x, -self.pos.y, -0.5/self.scale )
+
+		# This line tells the parent screen what rect should be drawn. Format is ((x minimum, x maximum), (y minimum, y maximum))
+		self.pscreen.camera_rect = ((self.pos.x - 800.0, self.pos.x + 800.0),(self.pos.y - 800.0,self.pos.y + 800.0)) # TODO: make this better.
