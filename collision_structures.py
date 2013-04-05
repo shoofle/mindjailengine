@@ -76,6 +76,19 @@ class SpatialGrid(object):
 		min_x, min_y = int(math.floor(x_min(item)/self.grid_size)), int(math.floor(y_min(item)/self.grid_size))
 		max_x, max_y = int(math.floor(x_max(item)/self.grid_size)), int(math.floor(y_max(item)/self.grid_size))
 		return ((i,j) for i in range(min_x-1, max_x+2) for j in range(min_y-1, max_y+2) if (i,j) in self.grid)
+	def collisions_with_rect(self, rect):
+		if hasattr(self.secondary,'collisions_with_rect'): output = self.secondary.collisions_with_rect(rect)
+		else: output = set()
+
+		min_x, min_y = int(math.floor(rect[0][0]/self.grid_size)), int(math.floor(rect[1][0]/self.grid_size))
+		max_x, max_y = int(math.floor(rect[0][1]/self.grid_size)), int(math.floor(rect[1][1]/self.grid_size))
+		buckets = (self.grid[(i,j)] for i in range(min_x-1, max_x+2) for j in range(min_y-1, max_y+2) if (i,j) in self.grid)
+
+		for b in buckets:
+			output = output | set(item for item in b if x_max(item) > rect[0][0] and x_min(item) < rect[0][1] and y_max(item) > rect[1][0] and y_min(item) < rect[1][1])
+		try: output = output | self.secondary.collisions_with_rect(rect)
+		except AttributeError: pass 
+		return output
 	def collisions(self, item):
 		""" Returns all objects colliding with this one. """
 		# No idea how reduce compares to other things, in terms of speed.
@@ -100,8 +113,7 @@ class SpatialGrid(object):
 				if len(self.grid[location]) is 0: del self.grid[location]
 			else: 
 				for l in self.grid.keys():
-					if item in self.grid[l]:
-						self.grid[l].remove(item)
+					if item in self.grid[l]: self.grid[l].remove(item)
 					if len(self.grid[l]) is 0: del self.grid[l]
 	def __contains__(self, item):
 		if self.too_big(item) and item in self.secondary: return True
@@ -142,17 +154,25 @@ class MultistoreSpatialGrid(object):
 	This structure relies on the supposition that the objects being stored in it are smaller than max_size - 
 	  so all the objects they can collide with are either within the same square as them, or in one of the neighboring squares.
 	"""
-	def __init__(self, items=None, max_size=50):
+	def __init__(self, items=None, max_size=100):
 		self.grid_size = max_size
 		self.grid = dict()
 		self.count = 0
+
+		self.vlist = pyglet.graphics.vertex_list(4, 'v3f')
+		self.vlist.vertices[0:3] = [0, 0, 0]
+		self.vlist.vertices[3:6] = [max_size, 0, 0]
+		self.vlist.vertices[6:9] = [max_size, max_size, 0]
+		self.vlist.vertices[9:12] = [0, max_size, 0]
+		self.color = random.random(), random.random(), random.random()
+
 		if max_size > 1000: self.secondary = BSPTree()
 		else: self.secondary = MultistoreSpatialGrid(max_size = max_size*2) # SpatialGrid(max_size=self.grid_size*2)
 	def too_big(self, item): return max(x_max(item)-x_min(item), y_max(item)-y_min(item)) > self.grid_size/2
 	def grid_squares(self, item):
-		min_x, min_y = int(x_min(item)/self.grid_size) - (1 if x_min(item)<0 else 0), int(y_min(item)/self.grid_size) - (1 if y_min(item)<0 else 0)
-		max_x, max_y = int(x_max(item)/self.grid_size) - (1 if x_max(item)<0 else 0), int(y_max(item)/self.grid_size) - (1 if y_max(item)<0 else 0)
-		return [(i,j) for i in range(min_x-1, max_x+2) for j in range(min_y-1, max_y+2)]
+		min_x, min_y = int(math.floor(x_min(item)/self.grid_size)), int(math.floor(y_min(item)/self.grid_size))
+		max_x, max_y = int(math.floor(x_max(item)/self.grid_size)), int(math.floor(y_max(item)/self.grid_size))
+		return ((i,j) for i in range(min_x, max_x+1) for j in range(min_y, max_y+1))
 	def collisions(self, item):
 		output = self.secondary.collisions(item)
 		for l in self.grid_squares(item):
@@ -184,6 +204,15 @@ class MultistoreSpatialGrid(object):
 	#		if l in self.grid and item in self.grid[l]: return True
 	#	return any(item in self.grid[l] for l in self.grid)
 	def __len__(self): return self.count + len(self.secondary)
+	def draw(self):
+		for x,y in self.grid:
+			pyglet.gl.glPushMatrix()
+			pyglet.gl.glTranslatef(x*self.grid_size, y*self.grid_size, 0)
+			pyglet.gl.glColor3f(self.color[0], self.color[1], self.color[2])
+			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+			pyglet.gl.glPopMatrix()
+		if hasattr(self.secondary, 'draw'): self.secondary.draw()
+
 
 class BSPTree(object):
 	"""This is a Binary Space Partitioning tree, which at every level divides space into two half-planes.

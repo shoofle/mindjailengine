@@ -206,7 +206,7 @@ class Circle(object):
 	""" Makes a circle object, which has simplified extents/projection code.
 	Displays as a polygon with numpoints points.  Dynamic or fixed radius? For now, fixedish. or something.
 	"""
-	def __init__(self, numpoints = 10, rad = 30, drawtype = "lines", invert = False):
+	def __init__(self, numpoints = 30, rad = 30, drawtype = "lines", invert = False):
 		self.name = SHAPE_CIRCLE
 		self.vlist = pyglet.graphics.vertex_list(numpoints,'v3f')
 		self.rad=rad
