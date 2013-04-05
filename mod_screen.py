@@ -12,9 +12,9 @@ from vectors import v
 
 import collision_structures
 
-def intersecttest(a, b):
-	if a.test_for_collision and b.test_for_collision:
-		return shapes.intersect(a,b)
+#def intersecttest(a, b):
+#	if a.test_for_collision and b.test_for_collision:
+#		return shapes.intersect(a,b)
 #collision_structures.intersects = intersecttest
 
 """ A class containing a module for the game. """
@@ -102,8 +102,8 @@ class TheScreen(object):
 		self.batch_addcomponent( FreeBall(self, location = v(100,0)) )
 		self.batch_addcomponent( FreeBall(self, location = v(0, 1700), rad=80) )
 
-		self.batch_addcomponent( Spawner(self, location = v(-500, 1500), rad=250), physics=False, collisions=False)
-		self.batch_addcomponent( Spawner(self, location = v(500, 1500), rad=250), physics=False, collisions=False)
+		self.batch_addcomponent( Spawner(self, location = v(-500, 1500), rad=250), static=True )
+		self.batch_addcomponent( Spawner(self, location = v(500, 1500), rad=250), static=True )
 
 		self.batch_addcomponent( EnemyBall(self, location = v(-200,30), rad=30) )
 		self.batch_addcomponent( EnemyBall(self, location = v(-260,0), rad=30) )
@@ -420,14 +420,14 @@ class Spawner(object):
 	""" A circular area that spawns EnemyBalls until it reaches the max, with chance spawn_chance every frame. """
 	def __init__(self, pscreen, location=v(0,0), rad=100, z=0.25, *args, **kwargs):
 		initialize_habitats(self,pscreen)
-		initialize_states(self, test_for_collision=False)
+		initialize_states(self, tangible=False, immobile=True)#, test_for_collision=False)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
 		self.z = z
 		self.shape.drawtype = "fill"
 
 		self.spawn_count = 0
-		self.spawn_count_max = 40 # Maximum number that will spawn before the spawner dies.
-		self.spawn_chance = 0.05 # chance of spawning, per frame.
+		self.spawn_count_max = 20 # Maximum number that will spawn before the spawner dies.
+		self.spawn_chance = 0.01 # chance of spawning, per frame.
 		self.maxvelocity = 1000
 	def collide(self,other): pass
 	def update(self, timestep):
@@ -471,7 +471,7 @@ class EnemyBall(object):
 ################################
 
 class PlayerBall(object):
-	""" The player. Oh my, but this is an overbuilt class. Oh well. """
+	""" The player. Oh my, but this is a big class. Oh well. It's an important object. """
 	def __init__(self,pscreen, location=v(0,0), *args, **kwargs):
 		initialize_habitats(self,pscreen)
 		initialize_states(self)
@@ -565,7 +565,6 @@ class BulletBall(object):
 	def draw(self):
 		pyglet.gl.glColor3f(1.0,0.2,0.5)
 		self.shape.draw(self.pos)
-
 class LaserLine(object):
 	""" A laser beam! """
 	def __init__(self, pscreen, parent,location=v(0,0), direction=v(0,1000), *args, **kwargs):
@@ -588,7 +587,7 @@ class LaserLine(object):
 		if self.time>self.time_to_live:
 			self.dead = True
 	def draw(self):
-		pyglet.gl.glColor3f(0.0,1.0-(self.time/self.time_to_live),0.0)
+		pyglet.gl.glColor3f(0.0,0.0,1.0-(self.time/self.time_to_live))
 		self.shape.draw(self.pos)
 class BombBall(object):
 	""" A bomb, which explodes after a certain amount of time to throw things flying. """

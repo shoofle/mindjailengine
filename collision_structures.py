@@ -5,8 +5,9 @@ import random
 import bisect
 import shapes
 
-"""I seem to have written a startling number of data structures for collision detection. The most notable is the BSPTree, which is the refinement of the QuadTree."""
+"""I seem to have written a startling number of data structures for collision detection. Currently using SpatialGrid, which is a spatial hashing implementation."""
 
+# These get used a LOT.
 y_min = lambda o: o.pos.y + o.shape.ybounds[0]
 y_max = lambda o: o.pos.y + o.shape.ybounds[1]
 x_min = lambda o: o.pos.x + o.shape.xbounds[0]
@@ -40,6 +41,12 @@ class DataStructure(object):
 	def __len__(self): return 0
 	def status_rep(self, indent=''): return '' # Optional. Used without checking if it's there, though.
 	def draw(self): pass # Optional.
+
+
+class BruteList(list):
+	"""A list with support for collision detection. This is mostly for comparison. You *are* the brute squad."""
+	def collisions(self, item): return set(x for x in self if x is not item and override_intersects(x, item))
+
 
 class SpatialGrid(object):
 	"""A loose spatial grid. Contains a dict mapping tuples to a secondary container. Indexes objects to the grid square containing their center.
@@ -86,8 +93,6 @@ class SpatialGrid(object):
 
 		for b in buckets:
 			output = output | set(item for item in b if x_max(item) > rect[0][0] and x_min(item) < rect[0][1] and y_max(item) > rect[1][0] and y_min(item) < rect[1][1])
-		try: output = output | self.secondary.collisions_with_rect(rect)
-		except AttributeError: pass 
 		return output
 	def collisions(self, item):
 		""" Returns all objects colliding with this one. """
@@ -145,6 +150,14 @@ class SpatialGrid(object):
 			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
 			pyglet.gl.glPopMatrix()
 		if hasattr(self.secondary, 'draw'): self.secondary.draw()
+
+
+
+
+
+
+
+
 
 class MultistoreSpatialGrid(object):
 	"""A loose spatial grid. Contains a dict mapping tuples to a secondary container. Indexes objects into *all* the grid squares they occupy.
@@ -455,16 +468,6 @@ class QuadTree(object):
 		if indent is '': return '\n'.join(output)
 		else: return output
 	
-class BruteList(list):
-	"""A list with support for collision detection. This is mostly for comparison.
-
-	I wrote this when I realized that the SortSearchList doesn't actually *work*, and I think I'm going to leave it here, because I like
-	  that the way I've structured my classes meant that implementing a brute-force collision checker involved two new lines and one reference
-	  changed (in QuadTree.__init__). Simplicity! Also, so straightforward. I feel good about this.
-	You *are* the brute squad.
-	"""
-	def collisions(self, item): return set(x for x in self if x is not item and override_intersects(x, item))
-
 class IntervalTree(object):
 	"""A tree for storing intervals along some axis.
 	
