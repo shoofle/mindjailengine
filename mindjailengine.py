@@ -9,6 +9,7 @@ from pyglet import window, clock, text
 import mod_screen
 from vectors import v
 
+import cProfile
 
 class GameWindow(window.Window):
 	"""This class represents the main window for the game. 
@@ -82,15 +83,13 @@ class GameWindow(window.Window):
 	def on_key_release(self,symbol,modifiers):
 		if not self.keyspressed: pass 
 		self.thescreen.on_key_release(symbol, modifiers)
-	def on_mouse_press(self, x, y, button, modifiers):
-		self.thescreen.on_mouse_press(x, y, button, modifiers)
-	def on_mouse_drag(self, x, y, dx, dy, button, modifiers):
-		self.thescreen.on_mouse_drag(x, y, dx, dy, button, modifiers)
-	def on_mouse_motion(self, x, y, dx, dy):
-		self.thescreen.on_mouse_motion(x,y,dx,dy)
+	def on_mouse_press(self, x, y, button, modifiers): self.thescreen.on_mouse_press(x, y, button, modifiers)
+	def on_mouse_drag(self, x, y, dx, dy, button, modifiers): self.thescreen.on_mouse_drag(x, y, dx, dy, button, modifiers)
+	def on_mouse_motion(self, x, y, dx, dy): self.thescreen.on_mouse_motion(x,y,dx,dy)
 
 
 if __name__ == "__main__":
 	"""What to do if we're being launched directly!"""
 	wind = GameWindow()
+#	cProfile.run('wind.main_loop()')
 	wind.main_loop()
