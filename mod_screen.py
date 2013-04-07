@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import pyglet
-from pyglet import window, text, gl, graphics
+from pyglet import window, text, graphics
+import pyglet.gl as opengl
 from pyglet.window import key
 
 import random
@@ -64,16 +65,26 @@ class TheScreen(object):
 		self.draw_debug = False
 
 		self.killcount = 0
+		self.total_time = 0
 		self.camera_rect = ((0,1),(0,1)) # (xmin, xmax), (ymin, ymax)
 
-		pyglet.gl.glEnable(pyglet.gl.GL_BLEND)
-		pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA,pyglet.gl.GL_ONE)
-		pyglet.gl.glLineWidth(2.0)
-		pyglet.gl.glEnable(pyglet.gl.GL_LINE_SMOOTH)
-		pyglet.gl.glEnable(pyglet.gl.GL_POINT_SMOOTH)
-		#pyglet.gl.glHint(pyglet.gl.GL_POINT_SMOOTH_HINT,pyglet.gl.GL_NICEST)
-		#pyglet.gl.glHint(pyglet.gl.GL_POLYGON_SMOOTH_HINT,pyglet.gl.GL_NICEST)
-		#pyglet.gl.glLineWidth(19.0)
+		opengl.glMatrixMode(opengl.GL_PROJECTION)
+		opengl.glEnable(opengl.GL_BLEND)
+		opengl.glBlendFunc(opengl.GL_SRC_ALPHA,opengl.GL_ONE)
+		opengl.glLineWidth(2.0)
+
+		opengl.glEnable(opengl.GL_LINE_SMOOTH)
+		opengl.glHint(opengl.GL_LINE_SMOOTH_HINT,opengl.GL_NICEST)
+		opengl.glEnable(opengl.GL_POINT_SMOOTH)
+		opengl.glHint(opengl.GL_POINT_SMOOTH_HINT,opengl.GL_NICEST)
+#		opengl.glEnable(opengl.GL_POLYGON_SMOOTH)
+#		opengl.glHint(opengl.GL_POLYGON_SMOOTH_HINT,opengl.GL_NICEST)
+		
+		#Activate the depth buffer.
+		opengl.glEnable(opengl.GL_DEPTH_TEST)
+		opengl.glDepthFunc(opengl.GL_LEQUAL)
+		opengl.glDepthRange(0.1, 1.0) #For some reason the z-buffer wasn't working until I threw this in.
+
 		###########
 		# Now, since this screen represents gameplay, we're going to initialize all the elements of the game we're playing.
 		# For now, this is just a pile of stuff.
@@ -187,31 +198,30 @@ class TheScreen(object):
 
 	def draw(self):
 		""" Instructs each component to draw itself, starting with the components in the priority set. """
-		pyglet.gl.glClear(pyglet.gl.GL_COLOR_BUFFER_BIT | pyglet.gl.GL_DEPTH_BUFFER_BIT)
-		#pyglet.gl.glEnable(pyglet.gl.GL_DEPTH_TEST)
-		pyglet.gl.glClearColor(1.0,1.0,1.0,0.0)
-		pyglet.gl.glPushMatrix()
+		opengl.glClearColor(1.0,1.0,1.0,0.0)
+		opengl.glClear(opengl.GL_COLOR_BUFFER_BIT | opengl.GL_DEPTH_BUFFER_BIT)
 
 		# TODO: Speed this up by not drawing things outside the window.
 		for thing in self.priority:
-			pyglet.gl.glColor3f(0.0,0.0,0.0)
+			opengl.glColor3f(0.0,0.0,0.0)
 			if self.draw_debug and hasattr(thing, 'draw_debug'): thing.draw_debug()
 			thing.draw()
 		for thing in sorted(self.coltree.collisions_with_rect(self.camera_rect), key=lambda j: j.pos.x):
 		#for thing in self.nonpriority:
-			pyglet.gl.glColor3f(0.0,0.0,0.0)
+			opengl.glColor3f(0.0,0.0,0.0)
 			if self.draw_debug and hasattr(thing, 'draw_debug'): thing.draw_debug()
 			thing.draw()
 		g = (t for t in self.nonpriority if t not in self.coltree)
 		for b in g: 
-			pyglet.gl.glColor3f(0.0,0.0,0.0)
+			opengl.glColor3f(0.0,0.0,0.0)
 			if self.draw_debug and hasattr(b, 'draw_debug'): b.draw_debug()
 			b.draw()
 		if self.draw_debug and hasattr(self.coltree,'draw'): self.coltree.draw()
-		pyglet.gl.glPopMatrix()
 
 	def update(self, timestep):
 		"""Update the state of each component in the game world."""
+
+		self.total_time += timestep
 
 		dead_things = (t for t in self.components if t.dead)
 
@@ -384,7 +394,7 @@ class FreeBall(object):
 		initialize_habitats(self,pscreen)
 		initialize_states(self)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
-		self.shape.drawtype = "outlined"
+		self.shape.drawtype = "3d"
 	def collide(self,other): phys_collide(self,other)
 	def update(self,timestep):
 		update_world(self,timestep)
@@ -396,7 +406,7 @@ class ObstacleBall(object):
 		initialize_habitats(self,pscreen)
 		initialize_states(self, immobile=True)
 		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
-		self.shape.drawtype="outlined"
+		self.shape.drawtype="3d"
 	def collide(self,other): pass
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
@@ -409,7 +419,6 @@ class ObstacleLine(object):
 		self.start = self.pos
 		self.end = endpoint
 		self.shape = shapes.Line(endpoint - self.pos, thickness = thick)
-		self.shape.drawtype="outlined"
 	def collide(self,other): pass
 	def update(self, timestep): pass
 	def draw(self): self.shape.draw(self.pos)
@@ -457,7 +466,7 @@ class Spawner(object):
 
 			self.spawn_count = self.spawn_count + 1
 	def draw(self): 
-		pyglet.gl.glColor4f(0.6,0.0,0.6,0.4)
+		opengl.glColor4f(0.6,0.0,0.6,0.4)
 		self.shape.draw(self.pos, self.z)
 class EnemyBall(object):
 	""" An enemy ball, which can be destroyed by bullets. """
@@ -474,7 +483,7 @@ class EnemyBall(object):
 		update_world(self,timestep)
 		update_inertia(self,timestep)
 	def draw(self):
-		pyglet.gl.glColor3f(0.5,0.5,0.5)
+		opengl.glColor3f(0.5,0.5,0.5)
 		self.shape.draw(self.pos)
 
 ################################
@@ -521,9 +530,9 @@ class PlayerBall(object):
 		update_world(self,timestep)
 		update_inertia(self,timestep)
 	def draw(self):
-		pyglet.gl.glColor3f(0.0,0.6,0.0)
+		opengl.glColor3f(0.0,0.6,0.0)
 		self.shape.draw(self.pos)
-		pyglet.gl.glColor3f(0.0,0.0,1.0)
+		opengl.glColor3f(0.0,0.0,1.0)
 		self.shape2.draw(self.pos + self.vel.unit()*(self.shape.rad - self.shape2.rad/2))
 	def on_key_press(self, symbol, modifiers):
 		if symbol == key.UP: self.thrustdir = self.thrustdir + v(0,2)
@@ -566,7 +575,7 @@ class BulletBall(object):
 		update_world(self,timestep)
 		update_inertia(self,timestep)
 	def draw(self):
-		pyglet.gl.glColor3f(1.0,0.2,0.5)
+		opengl.glColor3f(1.0,0.2,0.5)
 		self.shape.draw(self.pos)
 class LaserLine(object):
 	""" A laser beam! """
@@ -590,7 +599,7 @@ class LaserLine(object):
 		if self.time>self.time_to_live:
 			self.dead = True
 	def draw(self):
-		pyglet.gl.glColor3f(0.0,0.0,1.0-(self.time/self.time_to_live))
+		opengl.glColor3f(0.0,0.0,1.0-(self.time/self.time_to_live))
 		self.shape.draw(self.pos)
 class BombBall(object):
 	""" A bomb, which explodes after a certain amount of time to throw things flying. """
@@ -614,7 +623,7 @@ class BombBall(object):
 		update_inertia(self,timestep)
 	def draw(self):
 		# Color goes from black to red as it approaches exploding.
-		pyglet.gl.glColor3f((self.time/self.time_to_live), 0.0, 0.0)
+		opengl.glColor3f((self.time/self.time_to_live), 0.0, 0.0)
 		self.shape.draw(self.pos)
 class BombExplosion(object):
 	""" The explosion for the bomb. This is a non-tangible object which needs to collide with things. """
@@ -633,7 +642,7 @@ class BombExplosion(object):
 		if self.time > self.time_to_live:
 			self.dead = True
 	def draw(self):
-		pyglet.gl.glColor4f(1.0-self.time/self.time_to_live, 0*self.time/self.time_to_live, 0*self.time/self.time_to_live, 1.0-self.time/self.time_to_live)
+		opengl.glColor4f(1.0-self.time/self.time_to_live, 0*self.time/self.time_to_live, 0*self.time/self.time_to_live, 1.0-self.time/self.time_to_live)
 		self.shape.draw(self.pos)
 
 class CameraFollower(object):
@@ -679,11 +688,25 @@ class CameraFollower(object):
 		self.hud_label.text = self.template_text.format(self.pscreen.pwin.avefps, len(self.pscreen.coltree), len(self.pscreen.nonstatic_objects))
 
 	def draw(self):
+		#opengl.glMatrixMode(opengl.GL_PROJECTION)
+		opengl.glLoadIdentity()
 		self.hud_label.draw()
-		pyglet.gl.glLoadIdentity()
-		pyglet.gl.glTranslatef( self.pscreen.pwin.width/2, self.pscreen.pwin.height/2, 0.0 ) # Take the center of the parent window as the origin.
-		pyglet.gl.glFrustum(-1.0, 1.0, -1.0, 1.0, 0.5, 20.0) # Set up the frustrum
-		pyglet.gl.glTranslatef( -self.pos.x, -self.pos.y, -0.5/self.scale )
+		opengl.glTranslatef( self.pscreen.pwin.width/2, self.pscreen.pwin.height/2, 0.0 ) # Take the center of the parent window as the origin.
+		z = 20-5./self.scale # 30-32
+		#z = 5+math.sin(self.pscreen.total_time)
+		view_by_rect_and_height(3+1/self.scale, 3+1/self.scale, self.pos.x, self.pos.y, z, 15, -5)
 
 		# This line tells the parent screen what rect should be drawn. Format is ((x minimum, x maximum), (y minimum, y maximum))
-		self.pscreen.camera_rect = ((self.pos.x - 800.0, self.pos.x + 800.0),(self.pos.y - 800.0,self.pos.y + 800.0)) # TODO: make this better.
+		self.pscreen.camera_rect = ((self.pos.x - 900.0, self.pos.x + 900.0),(self.pos.y - 9000.0,self.pos.y + 9000.0)) # TODO: make this better.
+
+		#opengl.glMatrixMode(opengl.GL_MODELVIEW)
+
+def view_by_rect_and_height(width=10, height=10, x=0, y=0, z=15, plus_z_clip=5, negative_z_clip=-5):
+	""" Sets the view matrix using a call to glFrustum. This should set it so that the viewable area at z=0 has width width and height height, and set the clipping plane above the z axis at plus_z_clip and the one below the z axis at negative_z_clip. It doesn't quite work. """
+	near = z+plus_z_clip
+	far = z+negative_z_clip
+
+	left, right = -(near/z)*width/2.,  (near/z)*width/2.
+	bottom, top = -(near/z)*height/2., (near/z)*height/2.
+	opengl.glFrustum(left, right, bottom, top, near, far)
+	opengl.glTranslatef( -x, -y, -z )

@@ -2,7 +2,7 @@ import pyglet
 import random
 
 class Background(object):
-	def __init__(self, pscreen, num_triangles=100, x=(-5000,5000), y=(-1000,2000), z=(-0.2,-1.5), width=200, height=0.2):
+	def __init__(self, pscreen, num_triangles=1000, x=(-8000,8000), y=(-5000,5000), z=(-10.0,10.0), width=200, height=0.2):
 		self.pscreen = pscreen
 		self.dead = False
 		self.vlist = pyglet.graphics.vertex_list(3*num_triangles, 'v3f', 'c3f')

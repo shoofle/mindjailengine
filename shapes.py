@@ -146,7 +146,7 @@ def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_in
 
 class Line(object):
 	""" A line, potentially with rounded ends. """
-	def __init__(self, vector, thickness=0, draw_type=None, num_points = 9):
+	def __init__(self, vector, thickness=0, draw_type=None, num_points = 9, depth=0.5):
 		self.name = SHAPE_LINE
 		self.v = vector
 		self.normal = self.v.rperp().unit()
@@ -178,7 +178,10 @@ class Line(object):
 				self.vlist.vertices[d*(9+4)+d*i:d*(9+4)+d*(i+1)] = [-thickness*math.cos(math.pi*(i+1)/num_points), \
 																	-thickness*math.sin(math.pi*(i+1)/num_points), \
 																	0.0]
-	
+			self.drawtype = "3d"
+
+		self.vertex_lists_3d = make_3d(self.vlist, depth)
+
 		# Define the bounds.
 		self.xbounds = ( min(0,vector.x)-thickness, max(0,vector.x)+thickness )
 		self.ybounds = ( min(0,vector.y)-thickness, max(0,vector.y)+thickness )
@@ -194,6 +197,8 @@ class Line(object):
 			self.vlist.draw(pyglet.gl.GL_POLYGON)
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
 			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+		elif self.drawtype is "3d":
+			for l in self.vertex_lists_3d: l[0].draw(l[1])
 		elif self.drawtype == "points" :
 			self.vlist.draw(pyglet.gl.GL_POINTS)
 		elif self.drawtype == "lines" :
@@ -211,17 +216,18 @@ class Circle(object):
 	""" Makes a circle object, which has simplified extents/projection code.
 	Displays as a polygon with numpoints points.  Dynamic or fixed radius? For now, fixedish. or something.
 	"""
-	def __init__(self, numpoints = 30, rad = 30, drawtype = "lines", invert = False):
+	def __init__(self, numpoints = 30, rad = 30, drawtype = "lines", invert = False, depth=0.5):
 		self.name = SHAPE_CIRCLE
 		self.vlist = pyglet.graphics.vertex_list(numpoints,'v3f')
 		self.rad=rad
-		#self.rot=0
 		self.drawtype = drawtype
 		self.invert = invert
 
 		# Build the vertex list.
 		for i in range(numpoints):
 			self.vlist.vertices[d*i:d*(i+1)] = [math.cos(i*2*math.pi/numpoints), math.sin(i*2*math.pi/numpoints), 0]
+
+		self.vertex_lists_3d = make_3d(self.vlist, depth)
 
 		# Define the bounds.
 		self.xbounds = (-rad, rad)
@@ -237,6 +243,8 @@ class Circle(object):
 			self.vlist.draw(pyglet.gl.GL_POLYGON)
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
 			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+		elif self.drawtype is "3d":
+			for l in self.vertex_lists_3d: l[0].draw(l[1])
 		elif self.drawtype == "points" :
 			self.vlist.draw(pyglet.gl.GL_POINTS)
 		elif self.drawtype == "lines" :
@@ -248,3 +256,29 @@ class Circle(object):
 		else: self.vlist.draw(self.drawtype)
 		pyglet.gl.glPopMatrix()
 
+
+def make_3d(vlist, depth, edge_color=(0.1,0.1,0.1), cap_color=(0.8,0.8,0.8)):
+	num_vertices = len(vlist.vertices)/3
+	vlist_3d = pyglet.graphics.vertex_list(2*num_vertices + 2, 'v3f', 'c3f')
+	for i in range(num_vertices):
+		start = i*2*3
+		verts1, verts2 = vlist.vertices[i*3:(i+1)*3], vlist.vertices[i*3:(i+1)*3]
+		verts1[2] -= depth/2.0
+		verts2[2] += depth/2.0
+		vlist_3d.vertices[start:start+3], vlist_3d.vertices[start+3:start+6] = verts1, verts2
+	end = (len(vlist.vertices)-3)*2
+	vlist_3d.vertices[end:end+3] = vlist.vertices[0:3]
+	vlist_3d.vertices[end+3:end+6] = vlist.vertices[0:3]
+	vlist_3d.vertices[end+2] -= depth/2.0
+	vlist_3d.vertices[end+2+3] += depth/2.0
+	vlist_3d.colors = edge_color*(2*num_vertices+2)
+
+	back_cap = pyglet.graphics.vertex_list(num_vertices, 'v3f', 'c3f')
+	back_cap.vertices, back_cap.colors = vlist.vertices, cap_color*num_vertices
+	front_cap = pyglet.graphics.vertex_list(num_vertices, 'v3f', 'c3f')
+	front_cap.vertices, front_cap.colors = vlist.vertices, cap_color*num_vertices
+	for i in range(num_vertices):
+		back_cap.vertices[3*i+2] -= depth/2
+		front_cap.vertices[3*i+2] += depth/2
+
+	return (vlist_3d, pyglet.gl.GL_TRIANGLE_STRIP), (back_cap, pyglet.gl.GL_POLYGON), (front_cap, pyglet.gl.GL_POLYGON)
