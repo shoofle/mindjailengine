@@ -688,18 +688,16 @@ class CameraFollower(object):
 		self.hud_label.text = self.template_text.format(self.pscreen.pwin.avefps, len(self.pscreen.coltree), len(self.pscreen.nonstatic_objects))
 
 	def draw(self):
-		#opengl.glMatrixMode(opengl.GL_PROJECTION)
 		opengl.glLoadIdentity()
 		self.hud_label.draw()
 		opengl.glTranslatef( self.pscreen.pwin.width/2, self.pscreen.pwin.height/2, 0.0 ) # Take the center of the parent window as the origin.
-		z = 20-5./self.scale # 30-32
+		z = 20-5./self.scale
 		#z = 5+math.sin(self.pscreen.total_time)
-		view_by_rect_and_height(3+1/self.scale, 3+1/self.scale, self.pos.x, self.pos.y, z, 15, -5)
+		view_by_rect_and_height(4, 4, self.pos.x, self.pos.y, z, 15, -5)
 
 		# This line tells the parent screen what rect should be drawn. Format is ((x minimum, x maximum), (y minimum, y maximum))
-		self.pscreen.camera_rect = ((self.pos.x - 900.0, self.pos.x + 900.0),(self.pos.y - 9000.0,self.pos.y + 9000.0)) # TODO: make this better.
+		self.pscreen.camera_rect = ((self.pos.x - 900.0, self.pos.x + 900.0),(self.pos.y - 800.0,self.pos.y + 800.0)) # TODO: make this better.
 
-		#opengl.glMatrixMode(opengl.GL_MODELVIEW)
 
 def view_by_rect_and_height(width=10, height=10, x=0, y=0, z=15, plus_z_clip=5, negative_z_clip=-5):
 	""" Sets the view matrix using a call to glFrustum. This should set it so that the viewable area at z=0 has width width and height height, and set the clipping plane above the z axis at plus_z_clip and the one below the z axis at negative_z_clip. It doesn't quite work. """
