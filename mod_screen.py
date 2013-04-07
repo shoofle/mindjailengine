@@ -83,7 +83,7 @@ class TheScreen(object):
 		#Activate the depth buffer.
 		opengl.glEnable(opengl.GL_DEPTH_TEST)
 		opengl.glDepthFunc(opengl.GL_LEQUAL)
-		opengl.glDepthRange(0.1, 1.0) #For some reason the z-buffer wasn't working until I threw this in.
+		opengl.glDepthRange(0.0, 1.0) #For some reason the z-buffer wasn't working until I threw this in.
 
 		###########
 		# Now, since this screen represents gameplay, we're going to initialize all the elements of the game we're playing.
@@ -247,6 +247,10 @@ class TheScreen(object):
 			colset = self.coltree.collisions(obj) 
 			for col in colset:
 				if shapes.intersect(obj, col):
+					if hasattr(obj,'collides_with') and not obj.collides_with(col):
+						continue
+					if hasattr(col,'collides_with') and not col.collides_with(obj):
+						continue
 					obj.collide(col)
 					col.collide(obj)
 		# Done checking for/reacting to collisions!
@@ -561,13 +565,12 @@ class BulletBall(object):
 		self.time_to_live = 4
 		self.time=0
 	def collide(self,other):
-		if other is self.parent: return
-		#if hasattr(other,"player") and other.player: return
 		if hasattr(other,"enemy") and other.enemy:
 			self.dead = True
 			self.parent.gotkill(other)
 			return
 		phys_collide(self,other)
+	def collides_with(self, other): return other is not self.parent
 	def update(self,timestep):
 		self.time += timestep
 		if self.time>self.time_to_live:
@@ -589,11 +592,10 @@ class LaserLine(object):
 		self.time=0
 		self.shape=shapes.Line(direction)
 	def collide(self,other):
-		if other is self.parent: return
-		#if hasattr(other,"player") and other.player: return
 		if hasattr(other,"enemy") and other.enemy:
 			self.dead = True
 			self.parent.gotkill(other)
+	def collides_with(self, other): return other is not self.parent
 	def update(self,timestep):
 		self.time += timestep
 		if self.time>self.time_to_live:
@@ -610,10 +612,8 @@ class BombBall(object):
 		self.parent = parent
 		self.time_to_live=2
 		self.time=0
-	def collide(self, other):
-		if other is self.parent: return 
-		#if hasattr(other,"player") and other.player: return
-		phys_collide(self,other)
+	def collide(self, other): phys_collide(self,other)
+	def collides_with(self, other): return other is not self.parent
 	def update(self,timestep):
 		self.time += timestep
 		if self.time > self.time_to_live: 
