@@ -45,17 +45,17 @@ def linecircle(lineobj, circleobj):
 	"""
 	# TODO: Clean this up to be more readable, especially in the end bit.
 	# Comes from http://blog.generalrelativity.org/actionscript-30/collision-detection-circleline-segment-circlecapsule/ , pretty much.
-	separation = circleobj.pos - lineobj.pos
+	separation = lineobj.pos - circleobj.pos
 	line = lineobj.shape
 	circle = circleobj.shape
 
 	# factor holds the location along the line's central axis of the closest point to the circle.
-	factor = separation.projs(line.v)
+	factor = (-separation).projs(line.v)
 	if factor < 0: factor = 0 
 	if factor > abs(line.v): factor = abs(line.v)
 
 	# Newsep is the distance from the center of the circle to the closest point on the axis of the line.
-	separation = circleobj.pos - (lineobj.pos + factor*line.v.unit()) 
+	separation = (lineobj.pos + factor*line.v.unit()) - circleobj.pos 
 
 	# Now we've got the newsep, which is the vector from the closest point on the line to the circle's center.
 	# If abs(newsep) is 0, then output should be circle.rad
@@ -75,7 +75,7 @@ def circlecircle(me,you):
 	  remedy the collision.
 	If the objects do not collide, it returns None.
 	"""
-	separation = me.pos - you.pos # My distance from you.
+	separation = you.pos - me.pos # The vector from me to you.
 	if separation.x == 0 and separation.y == 0:
 		unit_separation = v(0,-1)
 		separation_magnitude = 0
@@ -95,12 +95,14 @@ def circlecircle(me,you):
 #		if val > 0: return -val*unit_separation
 #	return None
 	
-	# When you're adding in the velocity correction, you subtract because unit_separation is going to be in the wrong direction.
-	if hasattr(me, "vel"): my_extents = (-me.shape.rad - ts*(me.vel*unit_separation), me.shape.rad - ts*(me.vel*unit_separation))
-	else: my_extents = (-me.shape.rad, me.shape.rad)
 
-	if hasattr(you, "vel"): your_extents = (-you.shape.rad + ts*(you.vel*unit_separation), you.shape.rad + ts*(you.vel*unit_separation))
-	else: your_extents = (-you.shape.rad, you.shape.rad)
+	# TODO: Decide whether to leave in velocity corrections.
+	#if hasattr(me, "vel"): my_extents = (-me.shape.rad - ts*(me.vel*unit_separation), me.shape.rad - ts*(me.vel*unit_separation))
+	#else: 
+	my_extents = (-me.shape.rad, me.shape.rad)
+	#if hasattr(you, "vel"): your_extents = (-you.shape.rad + ts*(you.vel*unit_separation), you.shape.rad + ts*(you.vel*unit_separation))
+	#else: 
+	your_extents = (-you.shape.rad, you.shape.rad)
 	
 	output = intervalcompare(my_extents, your_extents, separation_magnitude, me.shape.invert , you.shape.invert )
 
@@ -141,8 +143,6 @@ def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_in
 	elif not me_inverted and not other_inverted:
 		if (my_left > your_right or my_right < your_left): return None
 		return min(your_left-my_right, your_right-my_left, key=abs)
-
-
 
 class Line(object):
 	""" A line, potentially with rounded ends. """

@@ -9,15 +9,10 @@ import random
 import math
 
 import shapes
-import background
 from vectors import v
-
 import collision_structures
 
-#def intersecttest(a, b):
-#	if a.test_for_collision and b.test_for_collision:
-#		return shapes.intersect(a,b)
-#collision_structures.intersects = intersecttest
+import procedural
 
 """ A class containing a module for the game. """
 class TheScreen(object):
@@ -154,7 +149,7 @@ class TheScreen(object):
 
 		#self.batch_addcomponent( InvertBall(self, location = v(0,1000), rad=2600), static=True )
 
-		self.batch_addcomponent( background.Background(self), static=True, collisions=False, priority=True )
+		self.batch_addcomponent( procedural.Background(self), static=True, collisions=False, priority=True )
 
 		###########
 		# And now the list of components is done.
@@ -203,8 +198,9 @@ class TheScreen(object):
 
 	def draw(self):
 		""" Instructs each component to draw itself, starting with the components in the priority set. """
+		# Clear the screen. The background is white. Also clear the buffers.
 		opengl.glClearColor(1.0,1.0,1.0,0.0)
-		opengl.glClear(opengl.GL_COLOR_BUFFER_BIT | opengl.GL_DEPTH_BUFFER_BIT)
+#		opengl.glClear(opengl.GL_COLOR_BUFFER_BIT | opengl.GL_DEPTH_BUFFER_BIT)
 
 		# TODO: Speed this up by not drawing things outside the window.
 		for thing in self.priority:
@@ -225,7 +221,6 @@ class TheScreen(object):
 
 	def update(self, timestep):
 		"""Update the state of each component in the game world."""
-
 		self.total_time += timestep
 
 		dead_things = (t for t in self.components if t.dead)
@@ -239,22 +234,22 @@ class TheScreen(object):
 			if thing in self.priority: 			self.priority.remove(thing)
 			if thing in self.nonpriority: 		self.nonpriority.remove(thing)
 			self.coltree.remove(thing)
-#			if not self.coltree.remove(thing): print("There's been a problem. We tried to remove something and it didn't work.")
-#			if thing in self.coltree: print("We removed something but it's still in the coltree.")
 			del thing
 
 		for thing in self.components: thing.update(timestep)
 
 		# And now they're updated, we do collision detection.
-		colset = set()
-		
 		for obj in self.nonstatic_objects:
-			colset = self.coltree.collisions(obj) 
-			for col in colset:
+			set_of_collisions = self.coltree.collisions(obj) 
+			for col in set_of_collisions:
+				if hasattr(obj, 'test_for_collision') and not obj.test_for_collision:
+					continue
+				if hasattr(col, 'test_for_collision') and not col.test_for_collision:
+					continue
 				if shapes.intersect(obj, col):
-					if hasattr(obj,'collides_with') and not obj.collides_with(col):
+					if hasattr(obj, 'collides_with') and not obj.collides_with(col):
 						continue
-					if hasattr(col,'collides_with') and not col.collides_with(obj):
+					if hasattr(col, 'collides_with') and not col.collides_with(obj):
 						continue
 					obj.collide(col)
 					col.collide(obj)
@@ -340,7 +335,7 @@ def initialize_states(self, dead=False, tangible=True, immobile=False, test_for_
 	immobile - if the 'immobile' flag is set, then the object cannot be moved.
 	test_for_collision - if true, then this object should be tested for whether it collides.
 	"""
-	# TODO: These duplicate the functionality of the tests in addcomponent.
+	# TODO: These duplicate the functionality of the tests in addcomponent. Compact this down for the component system.
 	self.dead = dead
 	self.tangible = tangible
 	self.immobile = immobile
@@ -364,23 +359,27 @@ def initialize_attributes(self, pos=v(0,0), vel=v(0,0), acc=v(0,0), r=20, shape=
 	if shape is None: self.shape = shapes.Circle(rad=self.rad, invert=0, **kwargs)
 	else: self.shape = shape
 def phys_collide(self,other):
-	""" Standard collision response. Reflect our velocity along the collision line thing.
-	If they're immobile, move us out.
-	"""
+	""" Basic response to collisions. If they're immobile, move us out.	"""
 	if not other.tangible: return
-	vector = shapes.intersect(self, other)
+	vector = shapes.intersect(self, other) # Returns the shortest vector by which to move 'self' to no longer be intersecting 'other'.
 	if vector is None: return None
 	else:
-		vector = -vector
-		velocity_perpendicular = self.vel.proj(vector)
+		velocity_perpendicular = self.vel.proj(vector) # The component of self.vel which is parallel or anti-parallel to 'vector'.
 		velocity_parallel = self.vel - velocity_perpendicular
-		if self.vel*vector > 0:
-			self.vel = self.pscreen.constants['elasticity']*velocity_perpendicular + self.pscreen.constants['friction']*velocity_parallel
+		if vector*self.vel > 0: 
+			# We are already moving in the direction to escape.
+			self.vel = self.pscreen.constants['friction']*velocity_parallel + self.pscreen.constants['elasticity']*velocity_perpendicular
 		else:
-			self.vel = -self.pscreen.constants['elasticity']*velocity_perpendicular + self.pscreen.constants['friction']*velocity_parallel
-		self.pos = self.pos + self.pscreen.constants['displace'] * vector
+			# We are moving to be deeper into the object. We should reverse the perpendicular component of our velocity.
+			self.vel = self.pscreen.constants['friction']*velocity_parallel - self.pscreen.constants['elasticity']*velocity_perpendicular
+		self.pos += self.pscreen.constants['displace'] * vector
 	if other.immobile:
-		self.pos = self.pos + vector
+		self.pos += vector
+	if self.pscreen.draw_debug:
+		opengl.glBegin(opengl.GL_LINES)
+		opengl.glVertex3f(self.pos.x, self.pos.y, 30.0)
+		opengl.glVertex3f(self.pos.x + vector.x, self.pos.y + vector.y, 30.0)
+		opengl.glEnd()
 def update_world(self,timestep):
 	""" The part of the update cycle where the various effects of the world act. """
 	self.acc = self.acc + timestep*self.pscreen.constants['gravity']
@@ -659,12 +658,16 @@ class CameraFollower(object):
 		self.z = -10
 
 		self.template_text = "FPS: {0:.2f}\n# of Objects: {1}\n# of Non-Static: {2}"
-		self.hud_label = text.Label(\
-				self.template_text.format(0, 0, 0), \
-				font_name='Arial', font_size=12, color=(0,0,0,255), \
-				#x=0, y=0, anchor_x="left", anchor_y="top", \
-				x = 3*self.pscreen.pwin.width/4, y = 1*self.pscreen.pwin.height/4, \
-				width = self.pscreen.pwin.width/4, height = self.pscreen.pwin.height/4, multiline = 1 )
+		l_x, l_y = 3*self.pscreen.pwin.width/4.0, 1*self.pscreen.pwin.height/4.0
+		l_w, l_h = self.pscreen.pwin.width/4.0, self.pscreen.pwin.height/8.0
+		self.hud_label = text.Label(
+				self.template_text.format(0, 0, 0), 
+				font_name='Arial', font_size=12, color=(0,0,0,255), 
+				x=l_x, y=l_y, width=l_w, height=l_h, 
+				anchor_x="center", anchor_y="center", multiline = 1 )
+		self.hud_background = pyglet.graphics.vertex_list(4, 'v3f', 'c3f')
+		self.hud_background.vertices = (l_x-l_w/2, l_y-l_h/2, -1, l_x+l_w/2, l_y-l_h/2, -1, l_x+l_w/2, l_y+l_h/2, -1, l_x-l_w/2, l_y+l_h/2, -1)
+		self.hud_background.colors = (1, 1, 1)*4
 
 		self.target = latch
 		self.spring = spring
@@ -719,6 +722,16 @@ class CameraFollower(object):
 		self.pscreen.camera_rect = ((self.pos.x - width/2.0, self.pos.x + width/2.0),(self.pos.y - height/2.0,self.pos.y + height/2.0)) # TODO: make this better.
 
 		opengl.glMatrixMode(opengl.GL_MODELVIEW)
+
+		opengl.glMatrixMode(opengl.GL_PROJECTION) # Edit the projection matrix.
+		opengl.glPushMatrix() # Push onto the stack, so that we can recover after.
+		opengl.glLoadIdentity() # Load a blank matrix.
+		opengl.glOrtho(0,self.pscreen.pwin.width, 0,self.pscreen.pwin.height, -1, 200) # Multiply by an orthogonal projection.
+		
+		self.hud_background.draw(opengl.GL_QUADS)
 		self.hud_label.draw()
+
+		opengl.glPopMatrix() # Recover the old projection matrix.
+		opengl.glMatrixMode(opengl.GL_MODELVIEW) # Return to the former matrix mode.
 
 
