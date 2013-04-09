@@ -700,35 +700,25 @@ class CameraFollower(object):
 		
 		#z = 1000.0 + 500/self.scale
 		z=600
-		clipping_plane_z_coordinates = (-400.0,400.0)
+		clipping_plane_z_coordinates = (-400.0,500.0)
 
 		dist_to_near_plane = min(z-clipping_plane_z_coordinates[0], z-clipping_plane_z_coordinates[1])
+		dist_to_near_plane = max(dist_to_near_plane, 0.1) # Ensure that it's not negative.
 		dist_to_far_plane = max(z-clipping_plane_z_coordinates[0], z-clipping_plane_z_coordinates[1])
 
-		width, height = 1000.0, 1000.0 # Width and height of the viewport at the xy plane.
+		width = 1000.0
+		height = width*self.pscreen.pwin.height/self.pscreen.pwin.width
+#		width, height = 1000.0, 1000.0 # Width and height of the viewport at the xy plane.
 		left_at_near_plane, right_at_near_plane = -(dist_to_near_plane/z)*width/2, (dist_to_near_plane/z)*width/2
 		bottom_at_near_plane, top_at_near_plane = -(dist_to_near_plane/z)*height/2, (dist_to_near_plane/z)*height/2
 		
-		#print(left_at_near_plane, right_at_near_plane, bottom_at_near_plane, top_at_near_plane, dist_to_near_plane, dist_to_far_plane)
 		opengl.glFrustum(left_at_near_plane, right_at_near_plane, bottom_at_near_plane, top_at_near_plane, dist_to_near_plane, dist_to_far_plane)
 		opengl.glTranslatef( -self.pos.x, -self.pos.y, -z )
 
 		# This line tells the parent screen what rect should be drawn. Format is ((x minimum, x maximum), (y minimum, y maximum))
-		self.pscreen.camera_rect = ((self.pos.x - width/2.0, self.pos.x + width/2.0),(self.pos.y - width/2.0,self.pos.y + width/2.0)) # TODO: make this better.
+		self.pscreen.camera_rect = ((self.pos.x - width/2.0, self.pos.x + width/2.0),(self.pos.y - height/2.0,self.pos.y + height/2.0)) # TODO: make this better.
 
 		opengl.glMatrixMode(opengl.GL_MODELVIEW)
 		self.hud_label.draw()
 
 
-def view_by_rect_and_height(width=10, height=10, x=0, y=0, z=15, plus_z_clip=5, negative_z_clip=-5):
-	""" Sets the view matrix using a call to glFrustum. This should set it so that the viewable area at z=0 has width width and height height, and set the clipping plane above the z axis at plus_z_clip and the one below the z axis at negative_z_clip. It doesn't quite work. """
-
-	a, b = z-plus_z_clip, z-negative_z_clip
-	# Distances to the clipping planes.
-	near, far = min(a,b), max(a,b)
-
-	#print near, far
-
-	left, right = -(near/z)*width/2.,  (near/z)*width/2.
-	bottom, top = -(near/z)*height/2., (near/z)*height/2.
-	opengl.glFrustum(left, right, bottom, top, near, far)
