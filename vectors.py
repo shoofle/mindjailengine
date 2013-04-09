@@ -45,3 +45,5 @@ class v(object):
 		return v(self.x, -self.y)
 	def lperp(self):
 		return v(-self.x, self.y)
+	def __repr__(self):
+		return "v({},{})".format(self.x, self.y)
