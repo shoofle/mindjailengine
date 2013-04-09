@@ -126,3 +126,28 @@ rands.append( [[v(uniform(-1,1),uniform(-1,1)) for i in range(100)] for j in ran
 for i in range(10):
 	if len(rands[i]) < 10: break
 	rands.append(rescale_2d(rands[i], 0.5))
+
+def apply(function):
+	return lambda source, index: function(source[index])
+
+
+def identity(source, index):
+	""" Returns the requested value. """
+	return source[index]
+
+class CompositeSignal(object):
+	""" A signal which is a user-defined compositing of other signals and operators. """
+	def __init__(self, source, operation=lambda source, index: source[index]):
+		self.source = source
+		self.operation = operation
+	def __len__(self):
+		return len(self.source)
+	def __getitem__(self, index):
+		return self.operation(self.source, index)
+	def __add__(self, other):
+		return CompositeSignal((self, other), operation=lambda source, index: source[0][index]+source[1][index])
+class Signal1D(object):
+	def __init__(self): pass
+	def __len__(self, index): pass
+	def __getitem__(self, index): pass
+
