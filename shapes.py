@@ -146,7 +146,7 @@ def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_in
 
 class Line(object):
 	""" A line, potentially with rounded ends. """
-	def __init__(self, vector, thickness=0, draw_type=None, num_points = 9, depth=0.5):
+	def __init__(self, vector, thickness=0, draw_type=None, num_points = 9, depth=20):
 		self.name = SHAPE_LINE
 		self.v = vector
 		self.normal = self.v.rperp().unit()
@@ -216,7 +216,7 @@ class Circle(object):
 	""" Makes a circle object, which has simplified extents/projection code.
 	Displays as a polygon with numpoints points.  Dynamic or fixed radius? For now, fixedish. or something.
 	"""
-	def __init__(self, numpoints = 30, rad = 30, drawtype = "lines", invert = False, depth=0.5):
+	def __init__(self, numpoints = 30, rad = 30, drawtype = "lines", invert = False, depth=20):
 		self.name = SHAPE_CIRCLE
 		self.vlist = pyglet.graphics.vertex_list(numpoints,'v3f')
 		self.rad=rad

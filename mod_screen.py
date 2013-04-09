@@ -82,8 +82,13 @@ class TheScreen(object):
 		
 		#Activate the depth buffer.
 		opengl.glEnable(opengl.GL_DEPTH_TEST)
-		opengl.glDepthFunc(opengl.GL_LEQUAL)
-		opengl.glDepthRange(0.0, 1.0) #For some reason the z-buffer wasn't working until I threw this in.
+		#opengl.glDepthFunc(opengl.GL_LEQUAL)
+		#opengl.glDepthRange(0.0, 1.0) #For some reason the z-buffer wasn't working until I threw this in.
+
+		#Lighting!
+		#opengl.glEnable(opengl.GL_LIGHTING)
+		#opengl.glEnable(opengl.GL_LIGHT0)
+		#opengl.glLightf(opengl.GL_LIGHT0, opengl.GL_LINEAR_ATTENUATION, 0.05)
 
 		###########
 		# Now, since this screen represents gameplay, we're going to initialize all the elements of the game we're playing.
@@ -534,6 +539,7 @@ class PlayerBall(object):
 		update_world(self,timestep)
 		update_inertia(self,timestep)
 	def draw(self):
+		#opengl.glLightfv(opengl.GL_LIGHT0, opengl.GL_POSITION, (opengl.GLfloat * 4)(*(self.pos.x, self.pos.y, 0.0, 1.0)))
 		opengl.glColor3f(0.0,0.6,0.0)
 		self.shape.draw(self.pos)
 		opengl.glColor3f(0.0,0.0,1.0)
@@ -688,23 +694,41 @@ class CameraFollower(object):
 		self.hud_label.text = self.template_text.format(self.pscreen.pwin.avefps, len(self.pscreen.coltree), len(self.pscreen.nonstatic_objects))
 
 	def draw(self):
+
+		opengl.glMatrixMode(opengl.GL_PROJECTION)
 		opengl.glLoadIdentity()
-		self.hud_label.draw()
-		opengl.glTranslatef( self.pscreen.pwin.width/2, self.pscreen.pwin.height/2, 0.0 ) # Take the center of the parent window as the origin.
-		z = 20-5./self.scale
-		#z = 5+math.sin(self.pscreen.total_time)
-		view_by_rect_and_height(4, 4, self.pos.x, self.pos.y, z, 15, -5)
+		
+		#z = 1000.0 + 500/self.scale
+		z=600
+		clipping_plane_z_coordinates = (-400.0,400.0)
+
+		dist_to_near_plane = min(z-clipping_plane_z_coordinates[0], z-clipping_plane_z_coordinates[1])
+		dist_to_far_plane = max(z-clipping_plane_z_coordinates[0], z-clipping_plane_z_coordinates[1])
+
+		width, height = 1000.0, 1000.0 # Width and height of the viewport at the xy plane.
+		left_at_near_plane, right_at_near_plane = -(dist_to_near_plane/z)*width/2, (dist_to_near_plane/z)*width/2
+		bottom_at_near_plane, top_at_near_plane = -(dist_to_near_plane/z)*height/2, (dist_to_near_plane/z)*height/2
+		
+		#print(left_at_near_plane, right_at_near_plane, bottom_at_near_plane, top_at_near_plane, dist_to_near_plane, dist_to_far_plane)
+		opengl.glFrustum(left_at_near_plane, right_at_near_plane, bottom_at_near_plane, top_at_near_plane, dist_to_near_plane, dist_to_far_plane)
+		opengl.glTranslatef( -self.pos.x, -self.pos.y, -z )
 
 		# This line tells the parent screen what rect should be drawn. Format is ((x minimum, x maximum), (y minimum, y maximum))
-		self.pscreen.camera_rect = ((self.pos.x - 900.0, self.pos.x + 900.0),(self.pos.y - 800.0,self.pos.y + 800.0)) # TODO: make this better.
+		self.pscreen.camera_rect = ((self.pos.x - width/2.0, self.pos.x + width/2.0),(self.pos.y - width/2.0,self.pos.y + width/2.0)) # TODO: make this better.
+
+		opengl.glMatrixMode(opengl.GL_MODELVIEW)
+		self.hud_label.draw()
 
 
 def view_by_rect_and_height(width=10, height=10, x=0, y=0, z=15, plus_z_clip=5, negative_z_clip=-5):
 	""" Sets the view matrix using a call to glFrustum. This should set it so that the viewable area at z=0 has width width and height height, and set the clipping plane above the z axis at plus_z_clip and the one below the z axis at negative_z_clip. It doesn't quite work. """
-	near = z+plus_z_clip
-	far = z+negative_z_clip
+
+	a, b = z-plus_z_clip, z-negative_z_clip
+	# Distances to the clipping planes.
+	near, far = min(a,b), max(a,b)
+
+	#print near, far
 
 	left, right = -(near/z)*width/2.,  (near/z)*width/2.
 	bottom, top = -(near/z)*height/2., (near/z)*height/2.
 	opengl.glFrustum(left, right, bottom, top, near, far)
-	opengl.glTranslatef( -x, -y, -z )
