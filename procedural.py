@@ -130,7 +130,6 @@ for i in range(10):
 def apply(function):
 	return lambda source, index: function(source[index])
 
-
 def identity(source, index):
 	""" Returns the requested value. """
 	return source[index]
@@ -143,11 +142,12 @@ class CompositeSignal(object):
 	def __len__(self):
 		return len(self.source)
 	def __getitem__(self, index):
-		return self.operation(self.source, index)
+		return self.v(self.t(self.source, index))
 	def __add__(self, other):
 		return CompositeSignal((self, other), operation=lambda source, index: source[0][index]+source[1][index])
+
+
 class Signal1D(object):
 	def __init__(self): pass
 	def __len__(self, index): pass
 	def __getitem__(self, index): pass
-

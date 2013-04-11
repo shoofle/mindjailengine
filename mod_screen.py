@@ -12,7 +12,7 @@ import shapes
 from vectors import v
 import collision_structures
 
-import procedural
+#import procedural
 
 """ A class containing a module for the game. """
 class TheScreen(object):
@@ -149,7 +149,7 @@ class TheScreen(object):
 
 		#self.batch_addcomponent( InvertBall(self, location = v(0,1000), rad=2600), static=True )
 
-		self.batch_addcomponent( procedural.Background(self), static=True, collisions=False, priority=True )
+		#self.batch_addcomponent( procedural.Background(self), static=True, collisions=False, priority=True )
 
 		###########
 		# And now the list of components is done.
