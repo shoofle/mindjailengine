@@ -4,6 +4,8 @@ mindjailengine
 A relatively simple game engine in python. Thanks, I'm shoofle.
 ---------------------------------------------------------------
 
+Check out what it looks like in [this (extremely choppy, because of the screen recorder) video!](http://www.youtube.com/watch?v=Jz5UKeIDZgA)
+
 This is a 2D, physics-y game engine in python. At present, it uses the [pyglet](http://www.pyglet.org/) library for windowing and opengl bindings, although this might change sometime soon in favor of something more frequently updated. For the moment, graphics are limited to vectory stuff, because it's all basically hand-crafted opengl loops. That's still in the works, but I like the vector look. Not sure where that's going to go.
 
 In order to use this, you'll need python (2.6, I think? 2.7? Unfortunately, it's not up to python3 yet :( I hope to make that happen!) and pyglet; I installed pyglet using [pip](https://pypi.python.org/pypi/pip) (`pip install pyglet`). When you've got pyglet in place, just do `python mindjailengine.py` and it'll go. Not too much to it.
