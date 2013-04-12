@@ -23,12 +23,6 @@ def center_from_object(thing): return thing.pos
 def center_from_group(things): return sum(map(lambda x: x.pos, things),v(0,0))/len(things)
 
 def intersects(a, b):
-	"""Return whether or not me and you are colliding. May very well be overwritten by the caller of the library."""
-#	return x_min(a) < x_max(b) and x_max(a) > x_min(b) and y_min(a) < y_max(b) and y_max(a) > y_min(b)
-	if a.test_for_collision and b.test_for_collision:
-		return shapes.intersect(a,b)
-
-def override_intersects(a, b):
 	return a is not b and x_min(a) < x_max(b) and x_max(a) > x_min(b) and y_min(a) < y_max(b) and y_max(a) > y_min(b)
 
 class DataStructure(object):
@@ -44,8 +38,8 @@ class DataStructure(object):
 
 
 class BruteList(list):
-	"""A list with support for collision detection. This is mostly for comparison. You *are* the brute squad."""
-	def collisions(self, item): return set(x for x in self if x is not item and override_intersects(x, item))
+	"""A list with support for brute-force collision detection. You *are* the brute squad."""
+	def collisions(self, item): return set(x for x in self if x is not item and intersects(x, item))
 
 
 class SpatialGrid(object):
