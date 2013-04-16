@@ -9,8 +9,9 @@ from vectors import v
 d = 3
 defaultTS = 0.04
 # This is probably really awful, I guess. This is like a fake enum. I feel kinda dirty.
-SHAPE_LINE = 2
 SHAPE_CIRCLE = 1
+SHAPE_LINE = 2
+SHAPE_RECTANGLE = 3
 """ Collisions! And shapes!
 This file defines the behavior of various shape objects, which, as the name implies, describe the shapes of objects within the world.
 This is heavily relied on for collision detection - the intersect(me, you) function, which takes two objects with "shape" attributes,
@@ -25,8 +26,8 @@ The only collision that is particularly robust is circle/circle collisions. The 
 
 def intersect(me, you):
 	"""This function takes two objects and returns, uh, the smallest vector to fix their intersection. """
-	if not hasattr(me, "shape"): pass
-	if not hasattr(you, "shape"): pass
+#	if not hasattr(me, "shape"): pass
+#	if not hasattr(you, "shape"): pass
 	if me.shape.name is SHAPE_CIRCLE and you.shape.name is SHAPE_CIRCLE:
 		return circlecircle(me,you)
 	if me.shape.name is SHAPE_LINE and you.shape.name is SHAPE_CIRCLE:
@@ -34,6 +35,13 @@ def intersect(me, you):
 	if me.shape.name is SHAPE_CIRCLE and you.shape.name is SHAPE_LINE:
 		output = linecircle(you,me)
 		return -output if output is not None else None
+	# TODO: rectangle-circle collisions
+	if me.shape.name is SHAPE_RECTANGLE and you.shape.name is SHAPE_CIRCLE:
+		return None
+	if me.shape.name is SHAPE_CIRCLE and you.shape.name is SHAPE_RECTANGLE:
+		return None
+#		output = None
+#		return -output if output is not None else None
 
 def linecircle(lineobj, circleobj):
 	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting.
@@ -62,9 +70,11 @@ def linecircle(lineobj, circleobj):
 	# If abs(newsep) is circle.rad, then output should be 0.
 	if separation.x == 0 and separation.y == 0:
 		return -line.v.unit() * (circle.rad + line.thickness)
-	if abs(separation) < circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness:
+	#if abs(separation) < circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness:
+	if abs(separation) < circle.rad + line.thickness:
 		# If the separation is less than the combination of circle radius, line radius, and the perpendicular component of the circle's velocity...
-		return separation.unit() * (circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness - abs(separation))
+		#return separation.unit() * (circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness - abs(separation))
+		return separation.unit() * (circle.rad + line.thickness - abs(separation))
 	return None
 
 def circlecircle(me,you):
@@ -84,18 +94,6 @@ def circlecircle(me,you):
 		unit_separation = separation.unit()
 
 	ts = defaultTS
-#	if not me.shape.invert and not you.shape.invert:
-#		val = separation_magnitude - (me.shape.rad + you.shape.rad - ts*(me.vel*unit_separation + you.vel*unit_separation))
-#		if val < 0: return val*unit_separation
-#	if not me.shape.invert and you.shape.invert: # You're inverted, I'm not.
-#		val = (separation_magnitude + me.shape.rad - ts*(me.vel*unit_separation)) - (you.shape.rad - ts*(you.vel*unit_separation))
-#		if val > 0: return val*unit_separation
-#	if me.shape.invert and not you.shape.invert: # I'm inverted, you're not.
-#		val = (separation_magnitude + you.shape.rad - ts*(you.vel*unit_separation)) - (me.shape.rad - ts*(me.vel*unit_separation))
-#		if val > 0: return -val*unit_separation
-#	return None
-	
-
 	# TODO: Decide whether to leave in velocity corrections.
 	#if hasattr(me, "vel"): my_extents = (-me.shape.rad - ts*(me.vel*unit_separation), me.shape.rad - ts*(me.vel*unit_separation))
 	#else: 
@@ -142,7 +140,7 @@ def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_in
 	# If neither of us are inverted, then it's like this:		[a	{c	b]	d}   then our options are a and d or b and c.
 	elif not me_inverted and not other_inverted:
 		if (my_left > your_right or my_right < your_left): return None
-		return min(your_left-my_right, your_right-my_left, key=abs)
+		return min(your_left - my_right, your_right - my_left, key=abs)
 
 class Line(object):
 	""" A line, potentially with rounded ends. """
@@ -226,18 +224,49 @@ class Circle(object):
 		# Build the vertex list.
 		for i in range(numpoints):
 			self.vlist.vertices[d*i:d*(i+1)] = [math.cos(i*2*math.pi/numpoints), math.sin(i*2*math.pi/numpoints), 0]
-
 		self.vertex_lists_3d = make_3d(self.vlist, depth)
 
 		# Define the bounds.
 		self.xbounds = (-rad, rad)
 		self.ybounds = (-rad, rad)
-	def draw(self, location, z=0):
+	def draw(self, location=None, z=0):
 		""" Draws the polygon at the polygon's self.x, self.y locations, scaled by self.r, rotated self.rot. """
 		pyglet.gl.glPushMatrix()
 		pyglet.gl.glTranslatef(location.x,location.y,z)
 		pyglet.gl.glScalef(self.rad,self.rad,1.0)
-		#pyglet.gl.glRotatef(self.rot, 0, 0, 1)
+		if self.drawtype is "outlined":
+			pyglet.gl.glColor3f(1.0,1.0,1.0)
+			self.vlist.draw(pyglet.gl.GL_POLYGON)
+			pyglet.gl.glColor3f(0.0,0.0,0.0)
+			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+		elif self.drawtype is "3d":
+			for l in self.vertex_lists_3d: l[0].draw(l[1])
+		elif self.drawtype == "points" :
+			self.vlist.draw(pyglet.gl.GL_POINTS)
+		elif self.drawtype == "lines" :
+			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+		elif self.drawtype == "oneline" :
+			self.vlist.draw(pyglet.gl.GL_LINE_STRIP)
+		elif self.drawtype == "fill" :
+			self.vlist.draw(pyglet.gl.GL_POLYGON)
+		else: self.vlist.draw(self.drawtype)
+		pyglet.gl.glPopMatrix()
+
+class Rectangle(object):
+	""" A rectangle. """
+	def __init__(self, x_min, x_max, y_min, y_max, drawtype = "3d", depth=20, color=(1.0, 1.0, 1.0)):
+		self.name = SHAPE_RECTANGLE
+		self.drawtype = drawtype
+		self.vlist = pyglet.graphics.vertex_list(4, 'v3f')
+
+		self.vlist.vertices = [x_min, y_min, 0, x_max, y_min, 0, x_max, y_max, 0, x_min, y_max, 0]
+		vertex_lists_3d = make_3d(self.vlist, depth)
+		
+		self.xbounds = (x_min, x_max)
+		self.ybounds = (y_min, y_max)
+	def draw(self, location=None, z=0):
+		pyglet.gl.glPushMatrix()
+		pyglet.gl.glTranslatef(location.x, location.y, z)
 		if self.drawtype is "outlined":
 			pyglet.gl.glColor3f(1.0,1.0,1.0)
 			self.vlist.draw(pyglet.gl.GL_POLYGON)

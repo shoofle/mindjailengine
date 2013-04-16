@@ -12,7 +12,8 @@ import shapes
 from vectors import v
 import collision_structures
 
-#import procedural
+from components import *
+from world_objects import *
 
 """ A class containing a module for the game. """
 class TheScreen(object):
@@ -61,24 +62,22 @@ class TheScreen(object):
 
 		self.killcount = 0
 		self.total_time = 0
-		self.camera_rect = ((0,1),(0,1)) # (xmin, xmax), (ymin, ymax)
+		self.camera_rect = CollisionComponent(owner=None, pos=v(0,0), shape=shapes.Rectangle(-1,1,-1,1)) # (xmin, xmax), (ymin, ymax)
+		self.constants = {'drag':10, 'gravity':v(0,-5000), 'elasticity':0.7, 'friction':0.9, 'displace':0.3}
 
-		opengl.glMatrixMode(opengl.GL_PROJECTION)
 		opengl.glEnable(opengl.GL_BLEND)
 		opengl.glBlendFunc(opengl.GL_SRC_ALPHA,opengl.GL_ONE)
 		opengl.glLineWidth(2.0)
 
-		opengl.glEnable(opengl.GL_LINE_SMOOTH)
-		opengl.glHint(opengl.GL_LINE_SMOOTH_HINT,opengl.GL_NICEST)
-		opengl.glEnable(opengl.GL_POINT_SMOOTH)
-		opengl.glHint(opengl.GL_POINT_SMOOTH_HINT,opengl.GL_NICEST)
+#		opengl.glEnable(opengl.GL_POINT_SMOOTH)
+#		opengl.glHint(opengl.GL_POINT_SMOOTH_HINT,opengl.GL_NICEST)
+#		opengl.glEnable(opengl.GL_LINE_SMOOTH)
+#		opengl.glHint(opengl.GL_LINE_SMOOTH_HINT,opengl.GL_NICEST)
 #		opengl.glEnable(opengl.GL_POLYGON_SMOOTH)
 #		opengl.glHint(opengl.GL_POLYGON_SMOOTH_HINT,opengl.GL_NICEST)
 		
 		#Activate the depth buffer.
 		opengl.glEnable(opengl.GL_DEPTH_TEST)
-		#opengl.glDepthFunc(opengl.GL_LEQUAL)
-		#opengl.glDepthRange(0.0, 1.0) #For some reason the z-buffer wasn't working until I threw this in.
 
 		#Lighting!
 		#opengl.glEnable(opengl.GL_LIGHTING)
@@ -95,6 +94,8 @@ class TheScreen(object):
 		
 		self.physics_objects = []
 		self.collision_objects = []
+		self.draw_objects = []
+		
 		self.static_objects = []
 		self.nonstatic_objects = []
 		self.priority = []
@@ -105,92 +106,79 @@ class TheScreen(object):
 
 		# and now, the things!
 
-		playerobj = self.batch_addentity( PlayerBall(self, location = v(0,0)), listeners=True)
-		self.batch_addentity( CameraFollower(self, latch=playerobj, spring=50, damping=10), collisions=False, priority=True) # Doesn't need collisions.
+		playerobj = self.add_entity( PlayerBall(self, location = v(0,0)) )
+		self.add_entity( CameraFollower(self, latch=playerobj, spring=50, damping=10) )
 
-		self.batch_addentity( FreeBall(self, location = v(0,-50)) )
-		self.batch_addentity( FreeBall(self, location = v(-100,0)) )
-		self.batch_addentity( FreeBall(self, location = v(100,0)) )
-		self.batch_addentity( FreeBall(self, location = v(0, 1700), rad=80) )
+		self.add_entity( FreeBall(self, location = v(0,-50)) )
+		self.add_entity( FreeBall(self, location = v(-100,0)) )
+		self.add_entity( FreeBall(self, location = v(100,0)) )
+		self.add_entity( FreeBall(self, location = v(0, 1700), rad=80) )
 
-		self.batch_addentity( Spawner(self, location = v(-500, 1500), rad=250), static=True )
-		self.batch_addentity( Spawner(self, location = v(500, 1500), rad=250), static=True )
+		self.add_entity( Spawner(self, location = v(-500, 1500), rad=250) )
+		self.add_entity( Spawner(self, location = v(500, 1500), rad=250) )
+		
+		self.add_entity( EnemyBall(self, location = v(-200,30), rad=30) )
+		self.add_entity( EnemyBall(self, location = v(-260,0), rad=30) )
+		self.add_entity( EnemyBall(self, location = v(-100,60), rad=30) )
 
-		self.batch_addentity( EnemyBall(self, location = v(-200,30), rad=30) )
-		self.batch_addentity( EnemyBall(self, location = v(-260,0), rad=30) )
-		self.batch_addentity( EnemyBall(self, location = v(-100,60), rad=30) )
-
-		#self.batch_addentity( ObstacleBall(self, location = v(-120,-200), rad=50) )
-		#self.batch_addentity( ObstacleBall(self, location = v(60,-300), rad=30) )
-		#self.batch_addentity( ObstacleBall(self, location = v(0,-800), rad=200) )
-		#self.batch_addentity( ObstacleBall(self, location = v(-300,-500), rad=100) )
-		#self.batch_addentity( ObstacleBall(self, location = v(200,300), rad=40) )
+		#self.batch_add_entity( ObstacleBall(self, location = v(-120,-200), rad=50) )
+		#self.batch_add_entity( ObstacleBall(self, location = v(60,-300), rad=30) )
+		#self.batch_add_entity( ObstacleBall(self, location = v(0,-800), rad=200) )
+		#self.batch_add_entity( ObstacleBall(self, location = v(-300,-500), rad=100) )
+		#self.batch_add_entity( ObstacleBall(self, location = v(200,300), rad=40) )
 		for i in range(100):
 			position = v(random.uniform(-1,1)*4000, random.uniform(-1,1)*1000)
-			self.batch_addentity( ObstacleBall(self, location = position, rad=40), static=True, invisible=False)
+			self.add_entity( ObstacleBall(self, location = position, rad=40) )
 
 		wavelength = 600
 		depth = 150
 		h = -1000
 		for i in range(-10, 10):
-			self.batch_addentity( ObstacleLine(self, location=v(i*wavelength, h), endpoint=v((i+0.5)*wavelength, h+depth), thick=20), static=True )
-			self.batch_addentity( ObstacleLine(self, location=v((i+0.5)*wavelength, h+depth), endpoint=v((i+1)*wavelength, h), thick=20), static=True )
+			self.add_entity( ObstacleLine(self, location=v(i*wavelength, h), endpoint=v((i+0.5)*wavelength, h+depth), thick=20) )
+			self.add_entity( ObstacleLine(self, location=v((i+0.5)*wavelength, h+depth), endpoint=v((i+1)*wavelength, h), thick=20) )
 
 		# The scoop.
-		#self.batch_addentity( ObstacleLine(self, location=v(2000, 0), endpoint=v(500, -1500), thick=20), static=True )
-		#self.batch_addentity( ObstacleLine(self, location=v(-2000, 0), endpoint=v(-500, -1500), thick=20), static=True )
-		#self.batch_addentity( ObstacleLine(self, location=v(-1000, -1500), endpoint=v(1000, -1500), thick=20), static=True )
+		#self.batch_add_entity( ObstacleLine(self, location=v(2000, 0), endpoint=v(500, -1500), thick=20), static=True )
+		#self.batch_add_entity( ObstacleLine(self, location=v(-2000, 0), endpoint=v(-500, -1500), thick=20), static=True )
+		#self.batch_add_entity( ObstacleLine(self, location=v(-1000, -1500), endpoint=v(1000, -1500), thick=20), static=True )
 
 		# The A-frame roof.
-		#self.batch_addentity( ObstacleLine(self, location=v(0, 1500), endpoint=v(-1000, -150),thick = 20), static=True )
-		#self.batch_addentity( ObstacleLine(self, location=v(0, 1500), endpoint=v(1000, -150),thick = 20), static=True )
+		#self.batch_add_entity( ObstacleLine(self, location=v(0, 1500), endpoint=v(-1000, -150),thick = 20), static=True )
+		#self.batch_add_entity( ObstacleLine(self, location=v(0, 1500), endpoint=v(1000, -150),thick = 20), static=True )
 
 
-		#self.batch_addentity( InvertBall(self, location = v(0,1000), rad=2600), static=True )
+		#self.batch_add_entity( InvertBall(self, location = v(0,1000), rad=2600), static=True )
 
-		#self.batch_addentity( procedural.Background(self), static=True, collisions=False, priority=True )
+#		background = procedural.Background()
+#		background.basic_component = BasicComponent(screen=self, tangible=False, immobile=True)
+#		self.add_entity( background, static=True, collisions=False, priority=True )
+
 
 		###########
 		# And now the list of entities is done.
 		###########
 
-		self.coltree.extend(self.collision_objects)
 
-		self.constants = {'drag':10, 'gravity':v(0,-5000), 'elasticity':0.7, 'friction':0.9, 'displace':0.3}
-
-	def batch_addentity(self, thing, physics=True, collisions=None, static=None, priority=False, listeners=False, invisible=False):
-		"""Add a number of entities to the lists of objects with various qualities, but do not yet add them to the collision structure.
-
-		This method is supposed to be used to add a large number of objects at once - and then followed up by a call that adds
-		  the appropriate objects into the coltree. The various keyword arguments have meanings:
-		physics: if True, then the object is presumed to have physics behavior.
-		collisions: if True, then the object should be tested for collisions. If physics is True, then this defaults to True.
-		static: if True, the object never moves, and so doesn't need to be tested for collisions with other static objects.
-		priority: if True, the object will be drawn before others. if False, they will be ordered by z-value (if they have one)
-		listeners: if True, the object will receive keyboard and mouse events.
-		"""
-		if collisions is None: collisions = physics
-		if static is None: static = not physics
+	def add_entity(self, thing):
+		""" Add an entity to the world. """
 		try:
-			self.entities.append(thing)
-			if physics: self.physics_objects.append(thing)
-			if collisions: 
-				self.collision_objects.append(thing)
-				if static: self.static_objects.append(thing)
-				else: self.nonstatic_objects.append(thing)
-			if not invisible:
-				if priority: self.priority.append(thing) # Objects which have priority drawing (these are drawn first).
-				else:
-					self.nonpriority.append(thing)	# Objects which do not have priority drawing.
-					self.nonpriority.sort(key = lambda t: t.z if hasattr(t,"z") else 0)
-			if listeners: self.listeners.append(thing)
-		except AttributeError as e: print("There was some kind of problem building the list of objects in the world. \n{}".format(e))
-		finally: return thing
-
-	def addentity(self, thing, *args, **kwargs):
-		self.batch_addentity(thing, *args, **kwargs)
-		if thing in self.collision_objects: self.coltree.append(thing)
-		return thing
+			if hasattr(thing, 'basic_component'):
+				self.entities.append(thing)
+			if hasattr(thing, 'physics_component'):
+				self.physics_objects.append(thing.physics_component)
+			if hasattr(thing, 'collision_component'):
+				self.collision_objects.append(thing.collision_component)
+				self.coltree.append(thing.collision_component)
+				if not thing.collision_component.immobile: 
+					self.nonstatic_objects.append(thing.collision_component)
+			if hasattr(thing, 'renderable_component'):
+				self.draw_objects.append(thing.renderable_component)
+			if hasattr(thing, 'input_listeners'):
+				self.listeners.append(thing)
+		except AttributeError as e: 
+			print("There was some kind of problem building the list of objects in the world. \n{}".format(e))
+		finally: 
+			return thing
 
 	def killcountincrease(self): # increment the kill count!
 		self.killcount = self.killcount + 1
@@ -199,23 +187,11 @@ class TheScreen(object):
 		""" Instructs each entity to draw itself, starting with the entities in the priority set. """
 		# Clear the screen. The background is white. Also clear the buffers.
 		opengl.glClearColor(1.0,1.0,1.0,0.0)
-#		opengl.glClear(opengl.GL_COLOR_BUFFER_BIT | opengl.GL_DEPTH_BUFFER_BIT)
+		opengl.glClear(opengl.GL_COLOR_BUFFER_BIT | opengl.GL_DEPTH_BUFFER_BIT)
 
 		# TODO: Speed this up by not drawing things outside the window.
-		for thing in self.priority:
-			opengl.glColor3f(0.0,0.0,0.0)
-			if self.draw_debug and hasattr(thing, 'draw_debug'): thing.draw_debug()
+		for thing in self.draw_objects:
 			thing.draw()
-		for thing in sorted(self.coltree.collisions_with_rect(self.camera_rect), key=lambda j: j.pos.x):
-		#for thing in self.nonpriority:
-			opengl.glColor3f(0.0,0.0,0.0)
-			if self.draw_debug and hasattr(thing, 'draw_debug'): thing.draw_debug()
-			thing.draw()
-		g = (t for t in self.nonpriority if t not in self.coltree)
-		for b in g: 
-			opengl.glColor3f(0.0,0.0,0.0)
-			if self.draw_debug and hasattr(b, 'draw_debug'): b.draw_debug()
-			b.draw()
 		if self.draw_debug and hasattr(self.coltree,'draw'): self.coltree.draw()
 
 	def update(self, timestep):
@@ -226,33 +202,44 @@ class TheScreen(object):
 
 		for thing in dead_things:
 			self.entities.remove(thing)
-			if thing in self.physics_objects: 	self.physics_objects.remove(thing)
-			if thing in self.collision_objects: self.collision_objects.remove(thing)
-			if thing in self.static_objects: 	self.static_objects.remove(thing)
-			if thing in self.nonstatic_objects: self.nonstatic_objects.remove(thing)
-			if thing in self.priority: 			self.priority.remove(thing)
-			if thing in self.nonpriority: 		self.nonpriority.remove(thing)
-			self.coltree.remove(thing)
+			if thing.physics_component in self.physics_objects: 	self.physics_objects.remove(thing.physics_component)
+			
+			if thing.collision_component in self.collision_objects: self.collision_objects.remove(thing.collision_component)
+			if thing.collision_component in self.nonstatic_objects: self.nonstatic_objects.remove(thing.collision_component)
+			if thing.collision_component in self.coltree:			self.coltree.remove(thing.collision_component)
+
+			if thing.renderable_component in self.draw_objects:		self.draw_objects.remove(thing.renderable_component)
+			
+			if thing in self.listeners:								self.listeners.remove(thing)
 			del thing
 
-		for thing in self.entities: thing.update(timestep)
+		for thing in self.entities:
+			thing.basic_component.update(timestep)
 
+		for thing in self.physics_objects:
+			thing.update(timestep)
+
+		for thing in self.collision_objects:
+			self.coltree.remove(thing)
+			thing.update(timestep)
+			self.coltree.append(thing)
 		# And now they're updated, we do collision detection.
 		for obj in self.nonstatic_objects:
-			set_of_collisions = self.coltree.collisions(obj) 
+			set_of_collisions = self.coltree.collisions(obj)
 			for col in set_of_collisions:
+				if not obj.collides_with(col): continue
+				if not col.collides_with(obj): continue
 				if shapes.intersect(obj, col):
-					if hasattr(obj, 'collides_with') and not obj.collides_with(col):
-						continue
-					if hasattr(col, 'collides_with') and not col.collides_with(obj):
-						continue
 					obj.collide(col)
 					col.collide(obj)
-		# Done checking for/reacting to collisions!
+					if hasattr(obj.owner, 'physics_component') and hasattr(col.owner, 'physics_component'):
+						phys_collide(col.owner.physics_component, obj.owner.physics_component)
 
 	def on_key_press(self, symbol, modifiers):
 		if symbol == key.P: self.pwin.thescreen = PauseScreen(self.pwin, self)
-		if symbol == key.R: print(self.coltree.status_rep(''))
+		if symbol == key.R: 
+			print(self.coltree.status_report())
+			print(opengl.gl_info.get_version())
 		if symbol == key.D: self.draw_debug = not self.draw_debug
 		for thing in self.listeners: thing.on_key_press(symbol, modifiers)
 	def on_key_release(self, symbol, modifiers):
@@ -313,396 +300,3 @@ class PauseScreen(object):
 	def on_mouse_drag(self, x, y, dx, dy, button, modifiers):pass
 	def on_mouse_motion(self, x, y, dx, dy):pass
 
-#############################
-### DONE WITH THE SCREENS ###
-#############################
-
-################################################
-### Things which are reused by many objects. ###
-class BasicComponent(object):
-	def __init__(self, screen=None, dead=False, tangible=True, immobile=False, **keyword_arguments):
-		self.parent_screen = screen
-		self.dead = dead
-		self.tangible = tangible
-		self.immobile = immobile
-		self.__dict__.update(keyword_arguments)
-def initialize_attributes(self, pos=v(0,0), vel=v(0,0), acc=v(0,0), r=20, shape=None, **kwargs):
-	""" Initialize various attributes of the physics-ness of the object.
-
-	This is like initializing a RigidBody entity.
-	pos - starting location, obviously.
-	vel - starting velocity.
-	acc - starting acceleration. Don't have mass yet. When we have mass, this'll be starting force.
-	r - radius scale of the object.
-	shape - a shape, if you want a non-circle one.
-	"""
-	self.pos = pos
-	self.vel = vel
-	self.acc = acc
-
-	self.rad = r
-	
-	if shape is None: self.shape = shapes.Circle(rad=self.rad, invert=0, **kwargs)
-	else: self.shape = shape
-def phys_collide(self,other):
-	""" Basic response to collisions. If they're immobile, move us out.	"""
-	if not other.basic_component.tangible: return
-	vector = shapes.intersect(self, other) # Returns the shortest vector by which to move 'self' to no longer be intersecting 'other'.
-	if vector is None: return None
-	else:
-		screen = self.basic_component.parent_screen
-		velocity_perpendicular = self.vel.proj(vector) # The entity of self.vel which is parallel or anti-parallel to 'vector'.
-		velocity_parallel = self.vel - velocity_perpendicular
-		if vector*self.vel > 0: 
-			# We are already moving in the direction to escape.
-			self.vel = screen.constants['friction']*velocity_parallel + screen.constants['elasticity']*velocity_perpendicular
-		else:
-			# We are moving to be deeper into the object. We should reverse the perpendicular entity of our velocity.
-			self.vel = screen.constants['friction']*velocity_parallel - screen.constants['elasticity']*velocity_perpendicular
-		self.pos += screen.constants['displace'] * vector
-	if other.basic_component.immobile:
-		screen = self.basic_component.parent_screen
-		self.pos += vector
-	if screen.draw_debug:
-		opengl.glBegin(opengl.GL_LINES)
-		opengl.glVertex3f(self.pos.x, self.pos.y, 30.0)
-		opengl.glVertex3f(self.pos.x + vector.x, self.pos.y + vector.y, 30.0)
-		opengl.glEnd()
-def update_world(self,timestep):
-	""" The part of the update cycle where the various effects of the world act. """
-	self.acc = self.acc + timestep*self.basic_component.parent_screen.constants['gravity']
-	self.acc = self.acc - timestep*self.basic_component.parent_screen.constants['drag']*self.vel
-def update_inertia(self,timestep):
-	""" Update position and velocity in the standard way. """
-	self.basic_component.parent_screen.coltree.remove(self) 
-	self.vel = self.vel + timestep*self.acc
-	self.pos = self.pos + timestep*self.vel
-	self.acc = v(0,0)
-	self.basic_component.parent_screen.coltree.append(self)
-
-#############################################
-### The objects which populate the level! ###
-#############################################
-
-class FreeBall(object):
-	""" A circular object that can move and bounce freely. It's a circle! Woo."""
-	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		self.basic_component = BasicComponent(screen=pscreen)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
-		self.shape.drawtype = "3d"
-	def collide(self,other): phys_collide(self,other)
-	def update(self,timestep):
-		update_world(self,timestep)
-		update_inertia(self,timestep)
-	def draw(self): self.shape.draw(self.pos)
-class ObstacleBall(object):
-	""" A ball fixed in space. """
-	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		self.basic_component = BasicComponent(screen=pscreen, immobile=True)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
-		self.shape.drawtype="3d"
-	def collide(self,other): pass
-	def update(self, timestep): pass
-	def draw(self): self.shape.draw(self.pos)
-class ObstacleLine(object):
-	""" A line, potentially with rounded ends, fixed in space. """
-	def __init__(self, pscreen, location=v(0,0), endpoint=v(0,1), thick = 0,*args, **kwargs):
-		self.basic_component = BasicComponent(screen=pscreen, immobile=True)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0))
-		self.start = self.pos
-		self.end = endpoint
-		self.shape = shapes.Line(endpoint - self.pos, thickness = thick)
-	def collide(self,other): pass
-	def update(self, timestep): pass
-	def draw(self): self.shape.draw(self.pos)
-class InvertBall(object):
-	""" An inverted circle, suitable for use as the boundary of a level. """
-	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		self.basic_component = BasicComponent(screen=pscreen, immobile=True)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=(0,0), r=rad)
-		self.shape.invert = True
-	def collide(self,other): pass
-	def update(self, timestep): pass
-	def draw(self): self.shape.draw(self.pos)
-
-###################
-### Opponents!? ###
-###################
-
-class Spawner(object):
-	""" A circular area that spawns EnemyBalls until it reaches the max, with chance spawn_chance every frame. """
-	def __init__(self, pscreen, location=v(0,0), rad=100, z=0.25, *args, **kwargs):
-		self.basic_component = BasicComponent(screen=pscreen, tangible=False, immobile=True)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
-		self.z = z
-		self.shape.drawtype = "fill"
-
-		self.spawn_count = 0
-		self.spawn_count_max = 20 # Maximum number that will spawn before the spawner dies.
-		self.spawn_chance = 0.01 # chance of spawning, per frame.
-		self.maxvelocity = 1000
-	def collide(self,other): pass
-	def update(self, timestep):
-		if self.spawn_count > self.spawn_count_max: return
-		if random.random() < self.spawn_chance:
-			r = random.random()*self.rad
-			angle = random.random()*2*math.pi
-			position = self.pos + v(r*math.cos(angle), r*math.sin(angle))
-			newball = EnemyBall(self.basic_component.parent_screen, location=position, rad=30)
-			vel = random.random()*self.maxvelocity
-			angle = random.random()*2*math.pi
-			newball.vel = v( vel*math.cos(angle), vel*math.sin(angle) )
-
-			self.basic_component.parent_screen.addentity(newball)
-
-			self.spawn_count = self.spawn_count + 1
-	def draw(self): 
-		opengl.glColor4f(0.6,0.0,0.6,0.4)
-		self.shape.draw(self.pos, self.z)
-class EnemyBall(object):
-	""" An enemy ball, which can be destroyed by bullets. """
-	def __init__(self, pscreen, location=v(0,0), rad=30, *args, **kwargs):
-		self.basic_component = BasicComponent(screen=pscreen)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=rad)
-		self.shape.drawtype = "fill"
-		self.enemy = True
-	def collide(self,other):
-		if hasattr(other,"bullet") and other.bullet: self.basic_component.dead = True
-		phys_collide(self,other)
-	def update(self,timestep):
-		update_world(self,timestep)
-		update_inertia(self,timestep)
-	def draw(self):
-		opengl.glColor3f(0.5,0.5,0.5)
-		self.shape.draw(self.pos)
-
-################################
-### Player-related stuff!    ###
-### Player, Bullets, Camera. ###
-################################
-
-class PlayerBall(object):
-	""" The player. Oh my, but this is a big class. Oh well. It's an important object. """
-	def __init__(self,pscreen, location=v(0,0), *args, **kwargs):
-		self.basic_component = BasicComponent(screen=pscreen)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=15)
-		self.z=0
-
-		self.thrust = 7500
-		self.thrustdir = v(0,0)
-		self.player = True
-
-		self.shape2 = shapes.Circle(10, rad=self.rad/4, drawtype="fill", invert=0)
-
-	def fire_bullet(self):
-		newbullet = BulletBall(self.basic_component.parent_screen, self, location=self.pos)
-		if abs(self.vel) == 0: newbullet.vel = v(0, 800)
-		else: newbullet.vel = self.vel + 800*self.vel.unit()
-		self.basic_component.parent_screen.addentity(newbullet)
-
-	def fire_bomb(self):
-		newbomb = BombBall(self.basic_component.parent_screen, self, location=self.pos)
-		if abs(self.vel) == 0: newbomb.vel = v(0, 200)
-		else: newbomb.vel = self.vel + 200*self.vel.unit()
-		self.basic_component.parent_screen.addentity(newbomb)
-
-	def fire_laser(self):
-		if abs(self.vel) == 0: direct = v(0,1000)
-		else: direct = 1000*self.vel.unit()
-		newlaser = LaserLine(self.basic_component.parent_screen, self, location=self.pos, direction=direct)
-		self.basic_component.parent_screen.addentity(newlaser, static=True)
-
-	def gotkill(self, other): self.basic_component.parent_screen.killcountincrease()
-	def collide(self,other): phys_collide(self,other)
-	def update(self,timestep):
-		self.acc = self.acc + self.thrust*timestep*self.thrustdir
-		update_world(self,timestep)
-		update_inertia(self,timestep)
-	def draw(self):
-		#opengl.glLightfv(opengl.GL_LIGHT0, opengl.GL_POSITION, (opengl.GLfloat * 4)(*(self.pos.x, self.pos.y, 0.0, 1.0)))
-		opengl.glColor3f(0.0,0.6,0.0)
-		self.shape.draw(self.pos)
-		opengl.glColor3f(0.0,0.0,1.0)
-		self.shape2.draw(self.pos + self.vel.unit()*(self.shape.rad - self.shape2.rad/2))
-	def on_key_press(self, symbol, modifiers):
-		if symbol == key.UP: self.thrustdir = self.thrustdir + v(0,2)
-		if symbol == key.DOWN: self.thrustdir = self.thrustdir + v(0,-1)
-		if symbol == key.LEFT: self.thrustdir = self.thrustdir + v(-1,0)
-		if symbol == key.RIGHT: self.thrustdir = self.thrustdir + v(1,0)
-		if symbol == key.Z: self.fire_bullet()
-		if symbol == key.X: self.fire_laser()
-		if symbol == key.C: self.fire_bomb()
-	def on_key_release(self, symbol, modifiers):
-		if symbol == key.UP: self.thrustdir = self.thrustdir - v(0,2)
-		if symbol == key.DOWN: self.thrustdir = self.thrustdir - v(0,-1)
-		if symbol == key.LEFT: self.thrustdir = self.thrustdir - v(-1,0)
-		if symbol == key.RIGHT: self.thrustdir = self.thrustdir - v(1,0)
-	def on_mouse_press(self, x, y, button, modifiers): pass
-	def on_mouse_drag(self, x, y, dx, dy, button, modifiers): pass
-	def on_mouse_motion(self, x, y, dx, dy): pass
-class BulletBall(object):
-	""" A projectile object. It's a circle! Woo."""
-	def __init__(self, pscreen, parent,location=v(0,0), *args, **kwargs):
-		self.basic_component = BasicComponent(screen=pscreen)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=5)
-		self.parent = parent
-		self.bullet = True
-		self.time_to_live = 4
-		self.time=0
-	def collide(self,other):
-		if hasattr(other,"enemy") and other.enemy:
-			self.basic_component.dead = True
-			self.parent.gotkill(other)
-			return
-		phys_collide(self,other)
-	def collides_with(self, other): return other is not self.parent
-	def update(self,timestep):
-		self.time += timestep
-		if self.time>self.time_to_live:
-			self.basic_component.dead = True
-		update_world(self,timestep)
-		update_inertia(self,timestep)
-	def draw(self):
-		opengl.glColor3f(1.0,0.2,0.5)
-		self.shape.draw(self.pos)
-class LaserLine(object):
-	""" A laser beam! """
-	def __init__(self, pscreen, parent,location=v(0,0), direction=v(0,1000), *args, **kwargs):
-		self.basic_component = BasicComponent(screen=pscreen, tangible=False)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0))
-		self.parent = parent
-		self.bullet = True
-		self.time_to_live = 0.5
-		self.time=0
-		self.shape=shapes.Line(direction)
-	def collide(self,other):
-		if hasattr(other,"enemy") and other.enemy:
-			self.basic_component.dead = True
-			self.parent.gotkill(other)
-	def collides_with(self, other): return other is not self.parent
-	def update(self,timestep):
-		self.time += timestep
-		if self.time>self.time_to_live: self.basic_component.dead = True
-	def draw(self):
-		opengl.glColor3f(0.0,0.0,1.0-(self.time/self.time_to_live))
-		self.shape.draw(self.pos)
-class BombBall(object):
-	""" A bomb, which explodes after a certain amount of time to throw things flying. """
-	def __init__(self, pscreen, parent, location=None):
-		self.basic_component = BasicComponent(screen=pscreen)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=8)
-		self.parent = parent
-		self.time_to_live=2
-		self.time=0
-	def collide(self, other): phys_collide(self,other)
-	def collides_with(self, other): return other is not self.parent
-	def update(self,timestep):
-		self.time += timestep
-		if self.time > self.time_to_live: 
-			self.basic_component.parent_screen.addentity( BombExplosion(self.basic_component.parent_screen, self, location=self.pos), static=True )
-			self.basic_component.dead = True
-		update_world(self,timestep)
-		update_inertia(self,timestep)
-	def draw(self):
-		# Color goes from black to red as it approaches exploding.
-		opengl.glColor3f((self.time/self.time_to_live), 0.0, 0.0)
-		self.shape.draw(self.pos)
-class BombExplosion(object):
-	""" The explosion for the bomb. This is a non-tangible object which needs to collide with things. """
-	def __init__(self, pscreen, parent, location=None):
-		self.basic_component = BasicComponent(screen=pscreen, tangible=False, immobile=True)
-		initialize_attributes(self, pos=location, vel=v(0,0), acc=v(0,0), r=100)
-		self.shape.drawtype = "fill"
-
-		self.parent = parent
-		self.time_to_live=0.5
-		self.time=0
-	def collide(self, other): other.acc = 100*(1-self.time/self.time_to_live)*(other.pos - self.pos)
-	def update(self, timestep):
-		self.time += timestep
-		if self.time > self.time_to_live:
-			self.basic_component.dead = True
-	def draw(self):
-		opengl.glColor4f(1.0-self.time/self.time_to_live, 0*self.time/self.time_to_live, 0*self.time/self.time_to_live, 1.0-self.time/self.time_to_live)
-		self.shape.draw(self.pos)
-
-class CameraFollower(object):
-	""" This object follows the latch and defines the drawing frustrum and basically sets up cameras. """
-	def __init__(self, pscreen, latch=None, spring=30, damping=2):
-		self.basic_component = BasicComponent(screen=pscreen, tangible=False, immobile=False)
-		self.z = -10
-
-		self.template_text = "FPS: {0:.2f}\n# of Objects: {1}\n# of Non-Static: {2}"
-		l_x, l_y = 3*pscreen.width/4.0, 1*pscreen.height/4.0
-		l_w, l_h =   pscreen.width/4.0,   pscreen.height/8.0
-		self.hud_label = text.Label(
-				self.template_text.format(0, 0, 0), 
-				font_name='Arial', font_size=12, color=(0,0,0,255), 
-				x=l_x, y=l_y, width=l_w, height=l_h, 
-				anchor_x="center", anchor_y="center", multiline = 1 )
-		self.hud_background = pyglet.graphics.vertex_list(4, 'v3f', 'c3f')
-		self.hud_background.vertices = (l_x-l_w/2, l_y-l_h/2, -1, l_x+l_w/2, l_y-l_h/2, -1, l_x+l_w/2, l_y+l_h/2, -1, l_x-l_w/2, l_y+l_h/2, -1)
-		self.hud_background.colors = (1, 1, 1)*4
-
-		self.target = latch
-		self.spring = spring
-		self.damping = damping
-
-		self.scale = 0.5
-		self.decay = 0.4
-
-		self.time = 0
-
-		self.pos = self.target.pos
-		self.vel = self.target.vel
-		self.acc = v(0,0)
-	def update(self,timestep):
-		# The reason this doesn't call update_inertia is that that also deals with the collision tree.
-		self.acc = self.acc + self.spring*(self.target.pos-self.pos)
-		self.acc = self.acc - self.damping*self.vel
-		self.vel = self.vel + timestep*self.acc
-		self.pos = self.pos + timestep*self.vel
-		self.acc = v(0,0)
-
-		targvel = abs(self.target.vel)/1000
-		scalefactor = 1 + 2/(1+math.exp(-targvel))
-		self.scale = self.decay*self.scale + (1-self.decay)/scalefactor
-		self.time = self.time + timestep
-
-		screen = self.basic_component.parent_screen
-		
-		self.hud_label.text = self.template_text.format(screen.pwin.avefps, len(screen.coltree), len(screen.nonstatic_objects))
-
-	def draw(self):
-		opengl.glMatrixMode(opengl.GL_PROJECTION)
-		opengl.glLoadIdentity()
-		#z = 1000.0 + 500/self.scale
-		z=600
-		clipping_plane_z_coordinates = (-400.0,500.0)
-
-		dist_to_near_plane = min(z-clipping_plane_z_coordinates[0], z-clipping_plane_z_coordinates[1])
-		dist_to_near_plane = max(dist_to_near_plane, 0.1) # Ensure that it's not negative.
-		dist_to_far_plane = max(z-clipping_plane_z_coordinates[0], z-clipping_plane_z_coordinates[1])
-
-		width = 1000.0
-		height = width* self.basic_component.parent_screen.height / self.basic_component.parent_screen.width
-#		width, height = 1000.0, 1000.0 # Width and height of the viewport at the xy plane.
-		left_at_near_plane, right_at_near_plane = -(dist_to_near_plane/z)*width/2, (dist_to_near_plane/z)*width/2
-		bottom_at_near_plane, top_at_near_plane = -(dist_to_near_plane/z)*height/2, (dist_to_near_plane/z)*height/2
-		
-		opengl.glFrustum(left_at_near_plane, right_at_near_plane, bottom_at_near_plane, top_at_near_plane, dist_to_near_plane, dist_to_far_plane)
-		opengl.glTranslatef( -self.pos.x, -self.pos.y, -z )
-
-		# This line tells the parent screen what rect should be drawn. Format is ((x minimum, x maximum), (y minimum, y maximum))
-		# TODO: make this better.
-		self.basic_component.parent_screen.camera_rect = ((self.pos.x - width/2.0, self.pos.x + width/2.0),(self.pos.y - height/2.0,self.pos.y + height/2.0)) 
-
-		opengl.glPushMatrix() # Push onto the stack, so that we can recover after.
-		opengl.glLoadIdentity() # Load a blank matrix.
-		opengl.glOrtho(0,self.basic_component.parent_screen.width, 0,self.basic_component.parent_screen.height, -1, 200) # Put us in orthogonal projection.
-		
-		self.hud_background.draw(opengl.GL_QUADS)
-		self.hud_label.draw()
-
-		opengl.glPopMatrix() # Recover the old projection matrix.
-		opengl.glMatrixMode(opengl.GL_MODELVIEW)

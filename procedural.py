@@ -5,9 +5,7 @@ import math
 from vectors import v
 
 class Background(object):
-	def __init__(self, pscreen, num_triangles=5000, x=(-8000,8000), y=(-5000,5000), z=(-100,100), width=200):
-		self.pscreen = pscreen
-		self.dead = False
+	def __init__(self, num_triangles=5000, x=(-8000,8000), y=(-5000,5000), z=(-100,100), width=200):
 		self.vlist = pyglet.graphics.vertex_list(3*num_triangles, 'v3f', 'c3f')
 
 		verts_per_triangle = 3
