@@ -63,7 +63,7 @@ class TheScreen(object):
 		self.killcount = 0
 		self.total_time = 0
 		self.camera_rect = CollisionComponent(owner=None, pos=v(0,0), shape=shapes.Rectangle(-1,1,-1,1)) # (xmin, xmax), (ymin, ymax)
-		self.constants = {'drag':10, 'gravity':v(0,-5000), 'elasticity':0.7, 'friction':0.9, 'displace':0.3}
+		self.constants = {'drag':5, 'gravity':v(0,-15000), 'elasticity':0.7, 'friction':0.9, 'displace':0.7}
 
 		opengl.glEnable(opengl.GL_BLEND)
 		opengl.glBlendFunc(opengl.GL_SRC_ALPHA,opengl.GL_ONE)
@@ -90,19 +90,20 @@ class TheScreen(object):
 		###########
 		
 		# Set up all the different lists of objects in the world. These roughly correspond to managers! Sort of.
-		self.coltree = collision_structures.SpatialGrid()
+		
+		self.entities = []
 		
 		self.physics_objects = []
-		self.collision_objects = []
-		self.draw_objects = []
-		
-		self.static_objects = []
-		self.nonstatic_objects = []
-		self.priority = []
-		self.nonpriority = []
-		self.listeners = []
 
-		self.entities = []
+		self.collision_objects = []
+		self.nonstatic_objects = []
+		self.coltree = collision_structures.SpatialGrid()
+
+		self.draw_objects = []
+		self.draw_priority = []
+		self.draw_tree = collision_structures.SpatialGrid()
+		
+		self.listeners = []
 
 		# and now, the things!
 
@@ -173,6 +174,10 @@ class TheScreen(object):
 					self.nonstatic_objects.append(thing.collision_component)
 			if hasattr(thing, 'renderable_component'):
 				self.draw_objects.append(thing.renderable_component)
+				if thing.renderable_component.priority:
+					self.draw_priority.append(thing.renderable_component)
+				else:
+					self.draw_tree.append(thing.renderable_component)
 			if hasattr(thing, 'input_listeners'):
 				self.listeners.append(thing)
 		except AttributeError as e: 
@@ -188,11 +193,16 @@ class TheScreen(object):
 		# Clear the screen. The background is white. Also clear the buffers.
 		opengl.glClearColor(1.0,1.0,1.0,0.0)
 		opengl.glClear(opengl.GL_COLOR_BUFFER_BIT | opengl.GL_DEPTH_BUFFER_BIT)
-
-		# TODO: Speed this up by not drawing things outside the window.
-		for thing in self.draw_objects:
+		
+		opengl.glPushMatrix()
+		for thing in self.draw_priority:
 			thing.draw()
-		if self.draw_debug and hasattr(self.coltree,'draw'): self.coltree.draw()
+		for thing in self.draw_tree.collisions(self.camera_rect):
+			thing.draw()
+		if self.draw_debug: 
+			self.coltree.draw()
+			self.draw_tree.draw()
+		opengl.glPopMatrix()
 
 	def update(self, timestep):
 		"""Update the state of each entity in the game world."""
@@ -209,38 +219,54 @@ class TheScreen(object):
 			if thing.collision_component in self.coltree:			self.coltree.remove(thing.collision_component)
 
 			if thing.renderable_component in self.draw_objects:		self.draw_objects.remove(thing.renderable_component)
+			if thing.renderable_component in self.draw_priority:	self.draw_priority.remove(thing.renderable_component)
+			if thing.renderable_component in self.draw_tree:		self.draw_tree.remove(thing.renderable_component)
 			
 			if thing in self.listeners:								self.listeners.remove(thing)
 			del thing
-
+		
 		for thing in self.entities:
 			thing.basic_component.update(timestep)
 
 		for thing in self.physics_objects:
 			thing.update(timestep)
 
+		for thing in self.draw_objects:
+			self.draw_tree.remove(thing)
+			thing.update(timestep)
+			self.draw_tree.append(thing)
+		
 		for thing in self.collision_objects:
 			self.coltree.remove(thing)
 			thing.update(timestep)
 			self.coltree.append(thing)
+
 		# And now they're updated, we do collision detection.
 		for obj in self.nonstatic_objects:
 			set_of_collisions = self.coltree.collisions(obj)
 			for col in set_of_collisions:
-				if not obj.collides_with(col): continue
-				if not col.collides_with(obj): continue
-				if shapes.intersect(obj, col):
+				if not obj.collides_with(col.owner): continue
+				if not col.collides_with(obj.owner): continue
+				vector = shapes.intersect(obj, col)
+				if vector is not None:
 					obj.collide(col)
 					col.collide(obj)
-					if hasattr(obj.owner, 'physics_component') and hasattr(col.owner, 'physics_component'):
-						phys_collide(col.owner.physics_component, obj.owner.physics_component)
+					po = obj.physics_component
+					co = col.physics_component
+					if po is not None and po.tangible and co is not None and co.tangible:
+						if not po.immobile: bounce(po, co, vector)
+						if not co.immobile: bounce(co, po, -vector)
+		
 
 	def on_key_press(self, symbol, modifiers):
-		if symbol == key.P: self.pwin.thescreen = PauseScreen(self.pwin, self)
+		if symbol == key.P: 
+			self.pwin.thescreen = PauseScreen(self.pwin, self)
 		if symbol == key.R: 
 			print(self.coltree.status_report())
+			print(self.draw_tree.status_report())
 			print(opengl.gl_info.get_version())
-		if symbol == key.D: self.draw_debug = not self.draw_debug
+		if symbol == key.D: 
+			self.draw_debug = not self.draw_debug
 		for thing in self.listeners: thing.on_key_press(symbol, modifiers)
 	def on_key_release(self, symbol, modifiers):
 		for thing in self.listeners: thing.on_key_release(symbol, modifiers)
@@ -265,8 +291,7 @@ class PauseScreen(object):
 
 		self.top_text_label = text.Label(
 				self.top_text.format(self.childscreen.killcount), \
-				'Arial', 24, \
-				color = (0, 0, 0, 200),\
+				'Arial', 24, color = (0, 0, 0, 200),\
 				x = self.pwin.width/2, y = self.pwin.height/2 ,\
 				anchor_x="center", anchor_y="center", \
 				width=3*self.pwin.width/4, height=3*self.pwin.height/4, \
@@ -274,8 +299,7 @@ class PauseScreen(object):
 			)
 		self.bottom_text_label = text.Label( \
 				self.bottom_text, \
-				'Arial', 24, \
-				color = (0, 0, 0, 200), \
+				'Arial', 24, color = (0, 0, 0, 200), \
 				x = self.pwin.width/2, y = self.pwin.height/4, \
 				anchor_x="center", anchor_y="center", \
 				width=3*self.pwin.width/4, height=3*self.pwin.height/4, \

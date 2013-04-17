@@ -12,14 +12,14 @@ defaultTS = 0.04
 SHAPE_CIRCLE = 1
 SHAPE_LINE = 2
 SHAPE_RECTANGLE = 3
+SHAPE_POINT = 4
 """ Collisions! And shapes!
 This file defines the behavior of various shape objects, which, as the name implies, describe the shapes of objects within the world.
 This is heavily relied on for collision detection - the intersect(me, you) function, which takes two objects with "shape" attributes,
   is used for all collision detection.
-Furthermore, these functions are actually called significantly more often than they need to. This is, in the future, a major potential
-  spot for optimization, given how often these are called.
 The only collision that is particularly robust is circle/circle collisions. The circle/circle code can handle inverted circles, and also
   extrapolates based on velocities.
+In the future, this module is going to be used for nothing but collision detection. Graphics should be offloaded to files, except maybe for debug purposes.
 """
 
 # TODO: implement collision with circles such that circles are represented as extruded circles, so that they cannot move through objects at high speed.
@@ -40,6 +40,7 @@ def intersect(me, you):
 		return None
 	if me.shape.name is SHAPE_CIRCLE and you.shape.name is SHAPE_RECTANGLE:
 		return None
+	# TODO: (point, rectangle, circle, line) collisions. make them all work.
 #		output = None
 #		return -output if output is not None else None
 
@@ -53,7 +54,7 @@ def linecircle(lineobj, circleobj):
 	"""
 	# TODO: Clean this up to be more readable, especially in the end bit.
 	# Comes from http://blog.generalrelativity.org/actionscript-30/collision-detection-circleline-segment-circlecapsule/ , pretty much.
-	separation = lineobj.pos - circleobj.pos
+	separation = lineobj.position_component.position - circleobj.position_component.position
 	line = lineobj.shape
 	circle = circleobj.shape
 
@@ -63,7 +64,7 @@ def linecircle(lineobj, circleobj):
 	if factor > abs(line.v): factor = abs(line.v)
 
 	# Newsep is the distance from the center of the circle to the closest point on the axis of the line.
-	separation = (lineobj.pos + factor*line.v.unit()) - circleobj.pos 
+	separation = (lineobj.position_component.position + factor*line.v.unit()) - circleobj.position_component.position
 
 	# Now we've got the newsep, which is the vector from the closest point on the line to the circle's center.
 	# If abs(newsep) is 0, then output should be circle.rad
@@ -85,7 +86,7 @@ def circlecircle(me,you):
 	  remedy the collision.
 	If the objects do not collide, it returns None.
 	"""
-	separation = you.pos - me.pos # The vector from me to you.
+	separation = you.position_component.position - me.position_component.position # The vector from me to you.
 	if separation.x == 0 and separation.y == 0:
 		unit_separation = v(0,-1)
 		separation_magnitude = 0
@@ -141,6 +142,12 @@ def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_in
 	elif not me_inverted and not other_inverted:
 		if (my_left > your_right or my_right < your_left): return None
 		return min(your_left - my_right, your_right - my_left, key=abs)
+
+class Point(object):
+	""" Just a point. """
+	def __init__(self, *args, **kwargs):
+		self.name = SHAPE_POINT
+		self.xbounds, self.ybounds = (0, 0), (0, 0)
 
 class Line(object):
 	""" A line, potentially with rounded ends. """

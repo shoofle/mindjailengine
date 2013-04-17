@@ -7,14 +7,6 @@ import shapes
 
 """I seem to have written a startling number of data structures for collision detection. Currently using SpatialGrid, which is a spatial hashing implementation."""
 
-# These get used a LOT.
-y_min = lambda o: o.pos.y + o.shape.ybounds[0]
-y_max = lambda o: o.pos.y + o.shape.ybounds[1]
-x_min = lambda o: o.pos.x + o.shape.xbounds[0]
-x_max = lambda o: o.pos.x + o.shape.xbounds[1]
-x_pos = lambda o: o.pos.x
-y_pos = lambda o: o.pos.y
-
 def intersects(a, b):
 	return a is not b and a.x_min < b.x_max and a.x_max > b.x_min and a.y_min < b.y_max and a.y_max > b.y_min
 
@@ -76,10 +68,8 @@ class SpatialGrid(object):
 
 	def collisions(self, item):
 		""" Returns all objects colliding with this one. """
-		if self.secondary is not None: 
-			output = self.secondary.collisions(item)
-		else: 
-			output = set()
+		if self.secondary is not None: output = self.secondary.collisions(item)
+		else: output = set()
 
 		return reduce(lambda acc, location: acc | self.grid[location].collisions(item), self.grid_space(item), output)	
 	

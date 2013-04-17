@@ -69,7 +69,7 @@ class GameWindow(window.Window):
 			self.clear()
 
 			self.thescreen.draw()
-			self.thescreen.update(0.05)
+			self.thescreen.update(dt)
 
 			self.runtime = self.runtime + dt
 			self.avefps = (1-self.decay)/dt + self.decay*self.avefps

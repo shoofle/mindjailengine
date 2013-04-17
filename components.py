@@ -17,111 +17,149 @@ class BasicComponent(AbstractComponent):
 class PositionComponent(AbstractComponent):
 	def __init__(self, position=None, *args, **keyword_args):
 		super(PositionComponent, self).__init__(*args, **keyword_args)
-		self.position = position
+		self.position = position or v(0,0)
 
 class CollisionComponent(AbstractComponent):
-	def __init__(self, shape=None, pos=None, immobile=None, *args, **keyword_args):
+	def __init__(self, shape=None, position_component=None, physics_component=None, immobile=None, *args, **keyword_args):
 		super(CollisionComponent, self).__init__(*args, **keyword_args)
+		
+		if position_component is None:
+			if hasattr(self.owner, 'position_component'):
+				position_component = self.owner.position_component
+			else:
+				position_component = PositionComponent(owner=self.owner)
+		self.position_component = position_component
+
 		if shape is None:
 			if hasattr(self.owner, 'shape'):
 				shape = self.owner.shape
+			else:
+				shape = shapes.Point()
 		self.shape = shape
+		
+		if physics_component is None:
+			if hasattr(self.owner, 'physics_component'):
+				physics_component = self.owner.physics_component
+		self.physics_component = physics_component
+
 		if immobile is None:
 			if hasattr(self.owner, 'physics_component'):
 				immobile = self.owner.physics_component.immobile
-			else: immobile = True
+			else: 
+				immobile = True
 		self.immobile = immobile
-		self.update(0)
-	@property
-	def pos(self):
-		if hasattr(self.owner, 'position_component'):
-			return self.owner.position_component.position
-	def collides_with(self, other): return True
-	def collide(self, other): pass
-	def update(self, timestep):
-		if self.shape is not None:
-			if hasattr(self.owner, 'position_component'):
-				pos = self.owner.position_component.position
-			else:
-				pos = v(0, 0)
-			self.x_pos, self.y_pos = pos.x, pos.y
-			self.x_min = self.x_pos + self.shape.xbounds[0]
-			self.x_max = self.x_pos + self.shape.xbounds[1]
-			self.y_min = self.y_pos + self.shape.ybounds[0]
-			self.y_max = self.y_pos + self.shape.ybounds[1]
+		
+		self.update()
+	def collides_with(self, other): 
+		return True
+	def collide(self, other): 
+		pass
+	def update(self, timestep=0):
+		self.x_pos, self.y_pos = self.position_component.position.x, self.position_component.position.y
+		self.x_min = self.x_pos + self.shape.xbounds[0]
+		self.x_max = self.x_pos + self.shape.xbounds[1]
+		self.y_min = self.y_pos + self.shape.ybounds[0]
+		self.y_max = self.y_pos + self.shape.ybounds[1]
 
 class PhysicsComponent(AbstractComponent):
-	def __init__(self, pos=None, vel=None, acc=None, shape=None, tangible=True, immobile=False, world_forces=True, *args, **keyword_args):
+	def __init__(self, position_component=None, pos=None, vel=None, acc=None, shape=None, tangible=True, immobile=False, world_forces=True, *args, **keyword_args):
 		super(PhysicsComponent, self).__init__(*args, **keyword_args)
-		if hasattr(self.owner, 'position_component'):
-			self.pos = pos or self.owner.position_component.position
-		else:
-			self.pos = pos or v(0,0)
+		
+		if position_component is None:
+			if hasattr(self.owner, 'position_component'):
+				position_component = self.owner.position_component
+			else:
+				position_component = PositionComponent(owner=self.owner, position=(pos or v(0,0)))
+		self.position_component = position_component
+
+		if shape is None:
+			if hasattr(self.owner, 'shape'):
+				shape = self.owner.shape
+			else:
+				shape = shapes.Point()
+		self.shape = shape
+		
+		if hasattr(self.owner, 'basic_component'):
+			self.screen = self.owner.basic_component.parent_screen
+		
 		self.vel = vel or v(0,0)
 		self.acc = acc or v(0,0)
 		
-		if shape is None:
-			if hasattr(self.owner, 'shape'):
-				shape = self.owner.shape
-		
-		self.shape = shape
 		self.tangible = tangible
 		self.immobile = immobile
 		self.world_forces = world_forces
+	
+	@property
+	def pos(self): return self.position_component.position
+	@pos.setter
+	def pos(self, value): self.position_component.position = value
+
 	def update(self, timestep):
-		if hasattr(self.owner, 'position_component'):
-			self.pos = self.owner.position_component.position
 		if not self.immobile:
 			if self.world_forces:
-				self.acc += timestep*self.owner.basic_component.parent_screen.constants['gravity']
-				self.acc -= timestep*self.owner.basic_component.parent_screen.constants['drag']*self.vel
+				self.acc += timestep*self.screen.constants['gravity']
+				self.acc -= timestep*self.screen.constants['drag']*self.vel
 			self.vel = self.vel + timestep*self.acc
-			self.pos = self.pos + timestep*self.vel
+			self.position_component.position += timestep*self.vel
 			self.acc = v(0,0)
-		if hasattr(self.owner, 'position_component'):
-			self.owner.position_component.position = self.pos
 
 class RenderableComponent(AbstractComponent):
-	def __init__(self, shape=None, pos=None, z=0, color=None, *args, **keyword_args):
+	def __init__(self, shape=None, position_component=None, pos=None, priority=False, z=0, color=None, *args, **keyword_args):
 		super(RenderableComponent, self).__init__(*args, **keyword_args)
+		if position_component is None:
+			if hasattr(self.owner, 'position_component'):
+				position_component = self.owner.position_component
+			else:
+				position_component = PositionComponent(owner=self.owner, position=(pos or v(0,0)))
+		self.position_component = position_component
+
 		if shape is None:
 			if hasattr(self.owner, 'shape'):
 				shape = self.owner.shape
+			else:
+				shape = shapes.Point()
 		self.shape = shape
-		color = color or (0.0, 0.0, 0.0, 1.0)
-		if len(color) is 3: color = (color[0], color[1], color[2], 1.0)
-		self.color = color
-		self.pos = pos or v(0,0)
-		self.z = z
-	def draw(self):
-		opengl.glColor4f(*self.color)
-		try:
-			self.shape.draw(self.owner.position_component.position, self.z)
-		except AttributeError as e:
-			self.shape.draw(self.pos, self.z)
 
-def phys_collide(self,other):
-	""" Basic response to collisions. If they're immobile, move us out.	"""
-	if not other.tangible: return
-	if self.immobile and other.immobile: return
-	if self.immobile and not other.immobile: return phys_collide(other, self)
-	vector = shapes.intersect(self, other) # Returns the shortest vector by which to move 'self' to no longer be intersecting 'other'.
-	screen = self.owner.basic_component.parent_screen
-	if vector is None: return None
+		self.color = color or (0, 0, 0, 1)
+		self.z = z
+		self.priority=priority
+		self.update()
+
+	@property
+	def color(self): return self._color
+	@color.setter
+	def color(self, value): self._color = value if len(value) is 4 else (value[0], value[1], value[2], 1.0) 
+	
+	def update(self, timestep=0):
+		self.x_pos, self.y_pos = self.position_component.position.x, self.position_component.position.y
+		self.x_min = self.x_pos + self.shape.xbounds[0]
+		self.x_max = self.x_pos + self.shape.xbounds[1]
+		self.y_min = self.y_pos + self.shape.ybounds[0]
+		self.y_max = self.y_pos + self.shape.ybounds[1]
+
+	def draw(self):
+		opengl.glColor4f(*self._color)
+		self.shape.draw(self.position_component.position, self.z)
+
+def bounce(thing, other, vector=None):
+	screen = thing.screen
+	
+	velocity_perpendicular = thing.vel.proj(vector)
+	velocity_parallel = thing.vel - velocity_perpendicular
+	
+	if vector*thing.vel > 0:
+		thing.vel = screen.constants['friction'] * velocity_parallel + screen.constants['elasticity'] * velocity_perpendicular
 	else:
-		velocity_perpendicular = self.vel.proj(vector) # The entity of self.vel which is parallel or anti-parallel to 'vector'.
-		velocity_parallel = self.vel - velocity_perpendicular
-		if vector*self.vel > 0: 
-			# We are already moving in the direction to escape.
-			self.vel = screen.constants['friction']*velocity_parallel + screen.constants['elasticity']*velocity_perpendicular
-		else:
-			# We are moving to be deeper into the object. We should reverse the perpendicular entity of our velocity.
-			self.vel = screen.constants['friction']*velocity_parallel - screen.constants['elasticity']*velocity_perpendicular
-		self.pos += screen.constants['displace'] * vector
+		thing.vel = screen.constants['friction'] * velocity_parallel - screen.constants['elasticity'] * velocity_perpendicular
+	
+	thing.position_component.position += screen.constants['displace'] * vector
+
 	if other.immobile:
-		self.pos += vector
+		thing.position_component.position += vector
+
 	if screen.draw_debug:
 		opengl.glBegin(opengl.GL_LINES)
-		opengl.glVertex3f(self.pos.x, self.pos.y, 30.0)
-		opengl.glVertex3f(self.pos.x + vector.x, self.pos.y + vector.y, 30.0)
+		p = thing.position_component.position
+		opengl.glVertex3f(p.x, p.y, 11)
+		opengl.glVertex3f(p.x + 5*vector.x, p.y + 5*vector.y, 11)
 		opengl.glEnd()
