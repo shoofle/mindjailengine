@@ -114,7 +114,7 @@ class PlayerBall(object):
 		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.0, 0.6, 0.0))
 		self.input_listeners = None #TODO: input listener component.
 		
-		self.thrust = 15000
+		self.thrust = 30000
 		self.thrustdir = v(0,0)
 
 		self.player = True
@@ -273,7 +273,7 @@ class CameraFollower(object):
 				font_name='Arial', font_size=12, color=(0,0,0,255), 
 				x=l_x, y=l_y, width=l_w, height=l_h, 
 				anchor_x="center", anchor_y="center", multiline = 1 )
-		self.hud_background = pyglet.graphics.vertex_list(4, 'v3f', 'c3f')
+		self.hud_background = pyglet.graphics.vertex_list(4, 'v3f', 'c3f') 
 		self.hud_background.vertices = (l_x-l_w/2, l_y-l_h/2, -1, l_x+l_w/2, l_y-l_h/2, -1, l_x+l_w/2, l_y+l_h/2, -1, l_x-l_w/2, l_y+l_h/2, -1)
 		self.hud_background.colors = (1, 1, 1)*4
 

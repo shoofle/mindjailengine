@@ -63,7 +63,7 @@ class TheScreen(object):
 		self.killcount = 0
 		self.total_time = 0
 		self.camera_rect = CollisionComponent(owner=None, pos=v(0,0), shape=shapes.Rectangle(-1,1,-1,1)) # (xmin, xmax), (ymin, ymax)
-		self.constants = {'drag':5, 'gravity':v(0,-15000), 'elasticity':0.7, 'friction':0.9, 'displace':0.7}
+		self.constants = {'drag':10, 'gravity':v(0,-30000), 'elasticity':0.7, 'friction':0.9, 'displace':0.7}
 
 		opengl.glEnable(opengl.GL_BLEND)
 		opengl.glBlendFunc(opengl.GL_SRC_ALPHA,opengl.GL_ONE)
