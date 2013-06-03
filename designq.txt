@@ -1,5 +1,4 @@
 level loading
-get collision detection working again
 cutscene window!
 level changing ingame
 menu screen!
@@ -13,6 +12,21 @@ hierarchical bounding volumes for static level structures!
 also being useful for level authoring.
 
 write levels as hierarchical bounding volumes -> most sensible way to group objects in a linear file is in hierarchies of purpose -> correlates with position
+
+
+
+
+1)
+BasicComponent
+Position
+2)
+Shape (Position)
+3)
+Collision (Shape, Position)
+Renderable (Shape, Position)
+4)
+Physics (Collision, Position)
+
 
 
 

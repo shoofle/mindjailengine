@@ -53,7 +53,7 @@ class TheScreen(object):
 	    "make a new entity, and put on the following pieces in this order".
 	That's a lot of words.
 	"""
-	def __init__(self, pwin):
+	def __init__(self, pwin, file_name):
 		""" Initialize the gamescreen. pwin is the parent window. """
 		self.pwin = pwin
 		self.width = pwin.width
@@ -102,24 +102,28 @@ class TheScreen(object):
 		self.draw_objects = []
 		self.draw_priority = []
 		self.draw_tree = collision_structures.SpatialGrid()
+		self.draw_tree.camera_rect = CollisionComponent(owner=None, pos=v(0,0), shape=shapes.Rectangle(-1,1,-1,1))
 		
 		self.listeners = []
 
-
-		label = text.Label( 'THIS IS A TEST', 'Arial', 24, color = (0, 0, 0, 200), 
-				x = self.pwin.width/2, y = self.pwin.height/4, anchor_x="center", anchor_y="center", 
-				width=3*self.pwin.width/4, height=3*self.pwin.height/4, multiline=1)
-		self.draw_objects.append(label)
-		self.draw_priority.append(label)
-		
-
-		###########
-		# And now the list of entities is done.
-		###########
-
+		try:
+			level_data = __import__(file_name)
+			manifest = level_data.generate(self)
+			for item in manifest:
+				self.add_entity(item)
+		except ImportError as e:
+			print("Error loading the level " + file_name)
+			raise e
 
 	def add_entity(self, thing):
 		""" Add an entity to the world. """
+		# TODO: Possibly iterate through thing.__dict__ and remove this dependency on the consistent attribute naming schemes
+		"""
+		for key, comp in thing.__dict__.items():
+			for name, system in systems:
+				if isinstance(comp, system.component):
+					system.append(comp)
+		"""
 		try:
 			if hasattr(thing, 'basic_component'):
 				self.entities.append(thing)
@@ -155,7 +159,7 @@ class TheScreen(object):
 		opengl.glPushMatrix()
 		for thing in self.draw_priority:
 			thing.draw()
-		for thing in self.draw_tree.collisions(self.camera_rect):
+		for thing in self.draw_tree.collisions(self.draw_tree.camera_rect):
 			thing.draw()
 		if self.draw_debug: 
 			self.coltree.draw()

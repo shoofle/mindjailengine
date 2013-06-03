@@ -330,7 +330,7 @@ class CameraFollower(object):
 		opengl.glTranslatef( -camera_position.x, -camera_position.y, -z )
 
 		# Define the rect of what objects should be drawn.
-		camera_rect = self.basic_component.parent_screen.camera_rect
+		camera_rect = self.basic_component.parent_screen.draw_tree.camera_rect
 		camera_rect.x_min, camera_rect.x_max = camera_position.x - width/2.0, camera_position.x + width/2.0
 		camera_rect.y_min, camera_rect.y_max = camera_position.y - height/2.0, camera_position.y + height/2.0
 

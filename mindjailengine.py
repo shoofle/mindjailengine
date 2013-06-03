@@ -6,7 +6,7 @@
 import pyglet
 from pyglet import window, clock, text
 
-import mod_screen
+import load_level_screen as mod_screen
 from vectors import v
 
 import cProfile
@@ -30,7 +30,7 @@ class GameWindow(window.Window):
 	  At the moment we use pyglet, but... that might not stay.
 
 	"""
-	def __init__(self, *args, **kwargs):
+	def __init__(self, screen_module = None, *args, **kwargs):
 		"""Set us up the window!"""
 		window.Window.__init__(self, *args, **kwargs)
 		self.set_mouse_visible(False)
@@ -48,18 +48,10 @@ class GameWindow(window.Window):
 		self.decay = 0.6
 
 		# List of screens to prepare.
-		self.thescreen = mod_screen.TheScreen(self)
-
-		#for thing in self.components:
-		#	thing.idnum = self.components.index(thing);
-		#	#self.register(thing.idnum, thing.x)
-		#	self.componentset.add(thing)
-
+		clock.set_fps_limit(60)
 
 	def main_loop(self):
 		"""Main runtime loop, which calls the stuff."""
-
-		clock.set_fps_limit(60)
 		dt = clock.tick()
 
 		while not self.has_exit:
@@ -82,14 +74,20 @@ class GameWindow(window.Window):
 		window.Window.on_key_press(self, symbol,modifiers)
 	def on_key_release(self,symbol,modifiers):
 		if not self.keyspressed: pass 
+		#if hasattr(self.thescreen, 'on_key_release'):
 		self.thescreen.on_key_release(symbol, modifiers)
-	def on_mouse_press(self, x, y, button, modifiers): self.thescreen.on_mouse_press(x, y, button, modifiers)
-	def on_mouse_drag(self, x, y, dx, dy, button, modifiers): self.thescreen.on_mouse_drag(x, y, dx, dy, button, modifiers)
-	def on_mouse_motion(self, x, y, dx, dy): self.thescreen.on_mouse_motion(x,y,dx,dy)
+	def on_mouse_press(self, x, y, button, modifiers): 
+		#if hasattr(self.thescreen, 'on_mouse_press'):
+		self.thescreen.on_mouse_press(x, y, button, modifiers)
+	def on_mouse_drag(self, x, y, dx, dy, button, modifiers): 
+		self.thescreen.on_mouse_drag(x, y, dx, dy, button, modifiers)
+	def on_mouse_motion(self, x, y, dx, dy): 
+		self.thescreen.on_mouse_motion(x,y,dx,dy)
 
 
 if __name__ == "__main__":
 	"""What to do if we're being launched directly!"""
 	wind = GameWindow()
+	wind.thescreen = screen_module.TheScreen(wind)
 #	cProfile.run('wind.main_loop()')
 	wind.main_loop()

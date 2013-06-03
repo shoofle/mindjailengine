@@ -3,6 +3,7 @@ from pyglet import gl as opengl
 import shapes
 
 class AbstractComponent(object):
+	""" A component which describes one facet of an entity in a game world. """
 	def __init__(self, owner=None, *positional_arguments, **keyword_args):
 		self.owner = owner
 		self.__dict__.update(keyword_args)

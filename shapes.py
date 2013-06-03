@@ -5,6 +5,7 @@ from pyglet import gl, graphics
 
 import math
 from vectors import v
+from components import PositionComponent
 
 d = 3
 defaultTS = 0.04
@@ -26,57 +27,80 @@ In the future, this module is going to be used for nothing but collision detecti
 
 def intersect(me, you):
 	"""This function takes two objects and returns, uh, the smallest vector to fix their intersection. """
-#	if not hasattr(me, "shape"): pass
-#	if not hasattr(you, "shape"): pass
-	if me.shape.name is SHAPE_CIRCLE and you.shape.name is SHAPE_CIRCLE:
-		return circlecircle(me,you)
-	if me.shape.name is SHAPE_LINE and you.shape.name is SHAPE_CIRCLE:
-		return linecircle(me,you)
-	if me.shape.name is SHAPE_CIRCLE and you.shape.name is SHAPE_LINE:
-		output = linecircle(you,me)
-		return -output if output is not None else None
-	# TODO: rectangle-circle collisions
-	if me.shape.name is SHAPE_RECTANGLE and you.shape.name is SHAPE_CIRCLE:
-		return None
-	if me.shape.name is SHAPE_CIRCLE and you.shape.name is SHAPE_RECTANGLE:
-		return None
-	# TODO: (point, rectangle, circle, line) collisions. make them all work.
-#		output = None
-#		return -output if output is not None else None
-
-def linecircle(lineobj, circleobj):
-	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting.
-	
-	This function takes two objects with shape attributes, the first of which is a line. It checks to see if they are colliding, 
-	  not taking into account velocity particularly well, and returns the shortest vector by which to move the circle to remedy 
-	  the collision.
-	If the objects do not collide, it returns None.
+	#if not hasattr(me, "shape"): pass
+	#if not hasattr(you, "shape"): pass
 	"""
-	# TODO: Clean this up to be more readable, especially in the end bit.
-	# Comes from http://blog.generalrelativity.org/actionscript-30/collision-detection-circleline-segment-circlecapsule/ , pretty much.
-	separation = lineobj.position_component.position - circleobj.position_component.position
-	line = lineobj.shape
-	circle = circleobj.shape
+	if isinstance(me, Circle):
+		if isinstance(you, Circle): return circlecircle(me, you)
+		if isinstance(you, Line): return circleline(me, you)
+		if isinstance(you, Rectangle): return None
+		if isinstance(you, Point): return None
+	if isinstance(me, Line):
+		if isinstance(you, Circle): return linecircle(me, you)
+		if isinstance(you, Line): return None
+		if isinstance(you, Rectangle): return None
+		if isinstance(you, Point): return None
+	if isinstance(me, Rectangle):
+		if isinstance(you, Circle): return None
+		if isinstance(you, Line): return None
+		if isinstance(you, Rectangle): return rectrect(me, you)
+		if isinstance(you, Point): return rectpoint(me, you)
+	if isinstance(me, Point):
+		if isinstance(you, Circle): return pointcircle(me, you)
+		if isinstance(you, Line): return None
+		if isinstance(you, Rectangle): return None
+		if isinstance(you, Point): return pointpoint(me, you)
+	"""
+	if me.name is SHAPE_CIRCLE and you.name is SHAPE_CIRCLE: return circlecircle(me, you)
 
-	# factor holds the location along the line's central axis of the closest point to the circle.
-	factor = (-separation).projs(line.v)
-	if factor < 0: factor = 0 
-	if factor > abs(line.v): factor = abs(line.v)
 
-	# Newsep is the distance from the center of the circle to the closest point on the axis of the line.
-	separation = (lineobj.position_component.position + factor*line.v.unit()) - circleobj.position_component.position
 
-	# Now we've got the newsep, which is the vector from the closest point on the line to the circle's center.
-	# If abs(newsep) is 0, then output should be circle.rad
-	# If abs(newsep) is circle.rad, then output should be 0.
-	if separation.x == 0 and separation.y == 0:
-		return -line.v.unit() * (circle.rad + line.thickness)
-	#if abs(separation) < circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness:
-	if abs(separation) < circle.rad + line.thickness:
-		# If the separation is less than the combination of circle radius, line radius, and the perpendicular component of the circle's velocity...
-		#return separation.unit() * (circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness - abs(separation))
-		return separation.unit() * (circle.rad + line.thickness - abs(separation))
-	return None
+	if me.name is SHAPE_LINE and you.name is SHAPE_LINE: return None
+
+	if me.name is SHAPE_LINE and you.name is SHAPE_CIRCLE: return linecircle(me, you)
+	if me.name is SHAPE_CIRCLE and you.name is SHAPE_LINE: return circleline(me, you)
+
+
+
+
+	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_RECTANGLE: return rectrect(me, you)
+
+	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_CIRCLE: return None
+	if me.name is SHAPE_CIRCLE and you.name is SHAPE_RECTANGLE: return None
+
+	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_LINE: return None
+	if me.name is SHAPE_LINE and you.name is SHAPE_RECTANGLE: return None
+
+
+
+
+
+	if me.name is SHAPE_POINT and you.name is SHAPE_POINT: return pointpoint(me, you)
+	
+	if me.name is SHAPE_POINT and you.name is SHAPE_CIRCLE: return pointcircle(me, you)
+	if me.name is SHAPE_CIRCLE and you.name is SHAPE_POINT: return circlepoint(me, you)
+
+	if me.name is SHAPE_POINT and you.name is SHAPE_LINE: return None
+	if me.name is SHAPE_LINE and you.name is SHAPE_POINT: return None
+
+	if me.name is SHAPE_POINT and you.name is SHAPE_RECTANGLE: return pointrect(me, you)
+	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_POINT: return rectpoint(me, you)
+
+def reverse_test(function):
+	""" Utility to create an inverted collision test function.
+
+	e.g., if you pass it a circle-rect collision function, it will return a rect-circle collision function. This just
+	passes the output through if it's None and inverts it otherwise."""
+	def new_func(shape_one, shape_two, *args, **kwargs):
+		output = function(shape_two, shape_one, *args, **kwargs)
+		if output is not None:
+			return -output
+	new_func.__doc__ = function.__doc__
+	return new_func
+
+def steal_docstring(to_function, from_function):
+	"""Prepends the docstring from function_two to the docstring for function_one."""
+	to_function.__doc__ = from_function.__doc__ + (to_function.__doc__ or "")
 
 def circlecircle(me,you):
 	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting.
@@ -98,15 +122,91 @@ def circlecircle(me,you):
 	# TODO: Decide whether to leave in velocity corrections.
 	#if hasattr(me, "vel"): my_extents = (-me.shape.rad - ts*(me.vel*unit_separation), me.shape.rad - ts*(me.vel*unit_separation))
 	#else: 
-	my_extents = (-me.shape.rad, me.shape.rad)
+	my_extents = (-me.radius, me.radius)
 	#if hasattr(you, "vel"): your_extents = (-you.shape.rad + ts*(you.vel*unit_separation), you.shape.rad + ts*(you.vel*unit_separation))
 	#else: 
-	your_extents = (-you.shape.rad, you.shape.rad)
+	your_extents = (-you.radius, you.radius)
 	
-	output = intervalcompare(my_extents, your_extents, separation_magnitude, me.shape.invert , you.shape.invert )
+	output = intervalcompare(my_extents, your_extents, separation_magnitude, me.invert , you.invert )
 
 	if output is None : return None
 	return output*unit_separation 
+
+def linecircle(line, circle):
+	separation = line.position_component.position - circle.position_component.position
+	
+	# TODO: Clean this up to be more readable, especially in the end bit.
+	# Comes from http://blog.generalrelativity.org/actionscript-30/collision-detection-circleline-segment-circlecapsule/ , pretty much.
+
+	# factor holds the location along the line's central axis of the closest point to the circle.
+	factor = (-separation).projs(line.v)
+	if factor < 0: factor = 0 
+	if factor > abs(line.v): factor = abs(line.v)
+
+	# Newsep is the distance from the center of the circle to the closest point on the axis of the line.
+	separation = (line.position_component.position + factor*line.v.unit()) - circle.position_component.position
+
+	# Now we've got the newsep, which is the vector from the closest point on the line to the circle's center.
+	# If abs(newsep) is 0, then output should be circle.rad
+	# If abs(newsep) is circle.rad, then output should be 0.
+	if separation.x == 0 and separation.y == 0:
+		return -line.v.unit() * (circle.rad + line.thickness)
+	#if abs(separation) < circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness:
+	if abs(separation) < circle.rad + line.thickness:
+		# If the separation is less than the combination of circle radius, line radius, and the perpendicular component of the circle's velocity...
+		#return separation.unit() * (circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness - abs(separation))
+		return separation.unit() * (circle.rad + line.thickness - abs(separation))
+	return None
+circleline = reverse_test(linecircle)
+steal_docstring(to_function=linecircle, from_function=circlecircle)
+steal_docstring(to_function=circleline, from_function=circlecircle)
+
+def rectrect(me, you):
+	separation = you.position_component.position - me.position_component.position
+	x = intervalcompare(me.xbounds, you.xbounds, separation.x)
+	y = intervalcompare(me.ybounds, you.ybounds, separation.y)
+	if x is None or y is None: 
+		return None
+	if abs(x) < abs(y):
+		return v(x, 0)
+	else:
+		return v(0, y)
+steal_docstring(to_function=rectrect, from_function=circlecircle)
+
+def pointpoint(me, you):
+	return v(0,1) if me.position_component.position == you.position_component.position else None
+steal_docstring(to_function=pointpoint, from_function=circlecircle)
+
+def circlepoint(me, you):
+	difference = you.position_component.position - me.position_component.position
+	if abs(difference) < me.radius:
+		return difference.unit()*(abs(difference) - me.radius)
+pointcircle = reverse_test(circlepoint)
+steal_docstring(to_function=circlepoint, from_function=circlecircle)
+steal_docstring(to_function=pointcircle, from_function=circlecircle)
+
+def rectpoint(me, you):
+	my_min = v(me.xbounds[0], me.ybounds[0]) + me.position_component.position
+	my_max = v(me.xbounds[1], me.ybounds[1]) + me.position_component.position
+	you_pos = you.position_component.position
+	center = (my_min + my_max) / 2
+	vect = you_pos - center
+
+	if my_min.x < you_pos.x < my_max.x and my_min.y < you_pos.y < my_max.y:
+		if abs(vect.x) < abs(vect.y):
+			if vect.x > 0:
+				return v(you_pos.x - me.xbounds[1], 0)
+			else:
+				return v(you_pos.x - me.xbounds[0], 0)
+		else:
+			if vect.y > 0:
+				return v(0, you_pos.y - me.ybounds[1])
+			else:
+				return v(0, you_pos.y - me.ybounds[0])
+pointrect = reverse_test(rectpoint)
+steal_docstring(to_function=rectpoint, from_function=circlecircle)
+steal_docstring(to_function=pointrect, from_function=circlecircle)
+
 
 def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_inverted = False):
 	"""Returns the amount by which to move 'me' to ensure that two (1D) intervals are no longer intersecting, or none if they're already fine.
@@ -143,15 +243,43 @@ def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_in
 		if (my_left > your_right or my_right < your_left): return None
 		return min(your_left - my_right, your_right - my_left, key=abs)
 
-class Point(object):
+
+def point_in_object(vect, obj):
+	""" Test if a point (specified by a vector) is within with a given object. """
+	point = Point(position=vect)
+	if intersects(point, obj):
+		return True
+	else:
+		return False
+
+
+class Shape(object):
+	def __init__(self, position = None, *args, **kwargs):
+		new_position = None
+		if position is None:
+			new_position = PositionComponent(owner=self)
+		elif isinstance(position, v):
+			new_position = PositionComponent(owner=self, position=position)
+		elif isinstance(position, PositionComponent):
+			new_position = position
+
+		self.position_component = new_position
+
+		self.name = None
+
+class Point(Shape):
 	""" Just a point. """
 	def __init__(self, *args, **kwargs):
+		super(Point, self).__init__(*args, **kwargs)
+		
 		self.name = SHAPE_POINT
 		self.xbounds, self.ybounds = (0, 0), (0, 0)
 
-class Line(object):
+class Line(Shape):
 	""" A line, potentially with rounded ends. """
-	def __init__(self, vector, thickness=0, draw_type=None, num_points = 9, depth=20):
+	def __init__(self, vector, thickness=0, draw_type=None, num_points = 9, depth=20, *args, **kwargs):
+		super(Line, self).__init__(*args, **kwargs)
+		
 		self.name = SHAPE_LINE
 		self.v = vector
 		self.normal = self.v.rperp().unit()
@@ -217,11 +345,13 @@ class Line(object):
 
 		pyglet.gl.glPopMatrix()
 
-class Circle(object):
+class Circle(Shape):
 	""" Makes a circle object, which has simplified extents/projection code.
 	Displays as a polygon with numpoints points.  Dynamic or fixed radius? For now, fixedish. or something.
 	"""
-	def __init__(self, numpoints = 30, rad = 30, drawtype = "lines", invert = False, depth=20):
+	def __init__(self, numpoints = 30, rad = 30, drawtype = "lines", invert = False, depth=20, *args, **kwargs):
+		super(Circle, self).__init__(*args, **kwargs)
+		
 		self.name = SHAPE_CIRCLE
 		self.vlist = pyglet.graphics.vertex_list(numpoints,'v3f')
 		self.rad=rad
@@ -259,9 +389,11 @@ class Circle(object):
 		else: self.vlist.draw(self.drawtype)
 		pyglet.gl.glPopMatrix()
 
-class Rectangle(object):
+class Rectangle(Shape):
 	""" A rectangle. """
-	def __init__(self, x_min, x_max, y_min, y_max, drawtype = "3d", depth=20, color=(1.0, 1.0, 1.0)):
+	def __init__(self, x_min, x_max, y_min, y_max, drawtype = "3d", depth=20, color=(1.0, 1.0, 1.0), *args, **kwargs):
+		super(Rectangle, self).__init__(*args, **kwargs)
+
 		self.name = SHAPE_RECTANGLE
 		self.drawtype = drawtype
 		self.vlist = pyglet.graphics.vertex_list(4, 'v3f')
