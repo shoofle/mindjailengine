@@ -18,34 +18,36 @@ from vectors import v
 class FreeBall(object):
 	""" A circular object that can move and bounce freely. It's a circle! Woo."""
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		self.shape = shapes.Circle(rad=rad, drawtype="3d")
-		
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.position_component = PositionComponent(owner=self, position=location)
 		
+		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="3d")
 		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=False)
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component) 
 		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
+		
+		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component) 
 class ObstacleBall(object):
 	""" A ball fixed in space. """
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		self.shape = shapes.Circle(rad=rad, drawtype="3d")
-		
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.position_component = PositionComponent(owner=self, position=location)
+		
+		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="3d")
 		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=True)
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
+		
+		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 class ObstacleLine(object):
 	""" A line, potentially with rounded ends, fixed in space. """
 	def __init__(self, pscreen, location=v(0,0), endpoint=v(0,1), thick = 0,*args, **kwargs):
-		self.shape = shapes.Line(endpoint - location, thickness=thick)
-		
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.position_component = PositionComponent(owner=self, position=location)
+		
+		self.shape = shapes.Line(owner=self, vector=endpoint - location, thickness=thick)
 		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=True)
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
+		
+		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 
 ###################
 ### Opponents!? ###
@@ -54,11 +56,11 @@ class ObstacleLine(object):
 class Spawner(object):
 	""" A circular area that spawns EnemyBalls until it reaches the max, with chance spawn_chance every frame. """
 	def __init__(self, pscreen, location=v(0,0), rad=100, z=0.25, *args, **kwargs):
-		self.shape = shapes.Circle(rad=rad, invert=0, drawtype="fill")
-
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.basic_component.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
+		
+		self.shape = shapes.Circle(owner=self, rad=rad, invert=0, drawtype="fill")
 		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, z=z, color=(0.6, 0, 0.6, 0.4))
 
 		self.spawn_count = 0
@@ -68,7 +70,7 @@ class Spawner(object):
 	def update(self, timestep):
 		if self.spawn_count > self.spawn_count_max: return
 		if random.random() < self.spawn_chance:
-			r = random.random()*self.shape.rad
+			r = random.random()*self.shape.radius
 			angle = random.random()*2*math.pi
 			position = self.position_component.position + v(r*math.cos(angle), r*math.sin(angle))
 			newball = EnemyBall(self.basic_component.parent_screen, location=position, rad=30)
@@ -83,14 +85,15 @@ class Spawner(object):
 class EnemyBall(object):
 	""" An enemy ball, which can be destroyed by bullets. """
 	def __init__(self, pscreen, location=v(0,0), rad=30, *args, **kwargs):
-		self.shape = shapes.Circle(rad=rad, drawtype="fill")
-		
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.position_component = PositionComponent(owner=self, position=location)
+		
+		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="fill")
 		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component)
+		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.5,0.5,0.5))
+		
 		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.collision_component.collide = self.collide
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.5,0.5,0.5))
 		
 		self.enemy = True
 	def collide(self,other):
@@ -104,15 +107,16 @@ class EnemyBall(object):
 class PlayerBall(object):
 	""" The player. Oh my, but this is a big class. Oh well. It's an important object. """
 	def __init__(self,pscreen, location=v(0,0), *args, **kwargs):
-		self.shape = shapes.Circle(rad=15)
-
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.basic_component.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
+		
+		self.shape = shapes.Circle(owner=self, rad=15)
 		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component)
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.0, 0.6, 0.0))
 		self.input_listeners = None #TODO: input listener component.
+
+		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		
 		self.thrust = 30000
 		self.thrustdir = v(0,0)
@@ -163,22 +167,23 @@ class PlayerBall(object):
 
 class BulletBall(object):
 	""" A projectile object. It's a circle! Woo."""
-	def __init__(self, pscreen, parent,location=v(0,0), *args, **kwargs):
+	def __init__(self, pscreen, parent, location=v(0,0), *args, **kwargs):
 		self.parent = parent
 		self.bullet = True
 		self.time_to_live = 4
 		self.time=0
 
-		self.shape = shapes.Circle(rad=5)
-
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.basic_component.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
+
+		self.shape = shapes.Circle(owner=self, rad=5)
 		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component)
+		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(1.0, 0.2, 0.5))
+		
 		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.collision_component.collides_with = lambda other: other is not self.parent
 		self.collision_component.collide = self.collide
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(1.0, 0.2, 0.5))
 	def collide(self,other):
 		if hasattr(other.owner,"enemy") and other.owner.enemy:
 			self.basic_component.dead = True
@@ -195,16 +200,18 @@ class LaserLine(object):
 		self.bullet = True
 		self.time_to_live = 0.5
 		self.time=0
-		self.shape=shapes.Line(direction*length)
 
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.basic_component.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
+		
+		self.shape=shapes.Line(owner=self, vector=direction*length)
 		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, tangible=False, immobile=True)
+		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.0, 0.0, 1.0, 1.0))
+		
 		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.collision_component.collides_with = lambda other: other is not self.parent
 		self.collision_component.collide = self.collide
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.0, 0.0, 1.0, 1.0))
 	def collide(self,other):
 		if hasattr(other, "enemy") and other.enemy:
 			self.basic_component.dead = True
@@ -217,7 +224,6 @@ class LaserLine(object):
 class BombBall(object):
 	""" A bomb, which explodes after a certain amount of time to throw things flying. """
 	def __init__(self, pscreen, parent, location=v(0,0)):
-		self.shape = shapes.Circle(rad=8)
 		self.parent = parent
 		self.time_to_live=2
 		self.time=0
@@ -225,10 +231,13 @@ class BombBall(object):
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.basic_component.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
+		
+		self.shape = shapes.Circle(owner=self, rad=8)
 		self.physics_component = PhysicsComponent(owner=self, pos=location)
+		self.renderable_component = RenderableComponent(owner=self, color=(0.0, 0.0, 0.0, 1.0))
+		
 		self.collision_component = CollisionComponent(owner=self)
 		self.collision_component.collides_with = lambda other: other is not self.parent
-		self.renderable_component = RenderableComponent(owner=self, color=(0.0, 0.0, 0.0, 1.0))
 	def update(self,timestep):
 		self.time += timestep
 		if self.time > self.time_to_live: 
@@ -242,15 +251,17 @@ class BombExplosion(object):
 		self.parent = parent
 		self.time_to_live=0.5
 		self.time=0
-		self.shape = shapes.Circle(rad=100, drawtype="fill")
 
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.basic_component.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
+		
+		self.shape = shapes.Circle(owner=self, rad=100, drawtype="fill")
 		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, tangible=False, immobile=True)
+		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(1, 0, 0, 1))
+		
 		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.collision_component.collide = self.collide
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(1, 0, 0, 1))
 	def collide(self, other): 
 		vector = other.owner.position_component.position - self.position_component.position
 		other.owner.physics_component.acc += 100*(1-self.time/self.time_to_live)*vector
@@ -263,8 +274,6 @@ class BombExplosion(object):
 class CameraFollower(object):
 	""" This object follows the latch and defines the drawing frustrum and basically sets up cameras. """
 	def __init__(self, pscreen, latch=None, spring=30, damping=2):
-
-
 		self.template_text = "FPS: {0:.2f}\n# of Objects: {1}\n# of Non-Static: {2}"
 		l_x, l_y = 3*pscreen.width/4.0, 1*pscreen.height/4.0
 		l_w, l_h =   pscreen.width/4.0,   pscreen.height/8.0
@@ -289,6 +298,7 @@ class CameraFollower(object):
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.basic_component.update = self.update
 		self.position_component = PositionComponent(owner=self, position=latch.position_component.position)
+		
 		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, tangible=False, world_forces=False)
 		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, priority=True)
 		self.renderable_component.draw = self.draw

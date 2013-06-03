@@ -5,7 +5,7 @@ from pyglet import gl, graphics
 
 import math
 from vectors import v
-from components import PositionComponent
+from components import PositionComponent, AbstractComponent
 
 d = 3
 defaultTS = 0.04
@@ -29,27 +29,27 @@ def intersect(me, you):
 	"""This function takes two objects and returns, uh, the smallest vector to fix their intersection. """
 	#if not hasattr(me, "shape"): pass
 	#if not hasattr(you, "shape"): pass
-	"""
-	if isinstance(me, Circle):
-		if isinstance(you, Circle): return circlecircle(me, you)
-		if isinstance(you, Line): return circleline(me, you)
-		if isinstance(you, Rectangle): return None
-		if isinstance(you, Point): return None
-	if isinstance(me, Line):
-		if isinstance(you, Circle): return linecircle(me, you)
-		if isinstance(you, Line): return None
-		if isinstance(you, Rectangle): return None
-		if isinstance(you, Point): return None
-	if isinstance(me, Rectangle):
-		if isinstance(you, Circle): return None
-		if isinstance(you, Line): return None
-		if isinstance(you, Rectangle): return rectrect(me, you)
-		if isinstance(you, Point): return rectpoint(me, you)
-	if isinstance(me, Point):
-		if isinstance(you, Circle): return pointcircle(me, you)
-		if isinstance(you, Line): return None
-		if isinstance(you, Rectangle): return None
-		if isinstance(you, Point): return pointpoint(me, you)
+	# Switch to use isinstance?
+	if me.name == SHAPE_CIRCLE:
+		if you.name == SHAPE_CIRCLE: return circlecircle(me, you)
+		if you.name == SHAPE_LINE: return circleline(me, you)
+		if you.name == SHAPE_RECTANGLE: return circlerect(me, you)
+		if you.name == SHAPE_POINT: return circlepoint(me, you)
+	if me.name == SHAPE_LINE:
+		if you.name == SHAPE_CIRCLE: return linecircle(me, you)
+		if you.name == SHAPE_LINE: return None
+		if you.name == SHAPE_RECTANGLE: return None
+		if you.name == SHAPE_POINT: return linepoint(me, you)
+	if me.name == SHAPE_RECTANGLE:
+		if you.name == SHAPE_CIRCLE: return rectcircle(me, you)
+		if you.name == SHAPE_LINE: return None
+		if you.name == SHAPE_RECTANGLE: return rectrect(me, you)
+		if you.name == SHAPE_POINT: return rectpoint(me, you)
+	if me.name == SHAPE_POINT:
+		if you.name == SHAPE_CIRCLE: return pointcircle(me, you)
+		if you.name == SHAPE_LINE: return pointline(me, you)
+		if you.name == SHAPE_RECTANGLE: return pointrect(me, you)
+		if you.name == SHAPE_POINT: return pointpoint(me, you)
 	"""
 	if me.name is SHAPE_CIRCLE and you.name is SHAPE_CIRCLE: return circlecircle(me, you)
 
@@ -65,8 +65,8 @@ def intersect(me, you):
 
 	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_RECTANGLE: return rectrect(me, you)
 
-	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_CIRCLE: return None
-	if me.name is SHAPE_CIRCLE and you.name is SHAPE_RECTANGLE: return None
+	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_CIRCLE: return rectcircle(me, you)
+	if me.name is SHAPE_CIRCLE and you.name is SHAPE_RECTANGLE: return circlerect(me, you)
 
 	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_LINE: return None
 	if me.name is SHAPE_LINE and you.name is SHAPE_RECTANGLE: return None
@@ -80,14 +80,15 @@ def intersect(me, you):
 	if me.name is SHAPE_POINT and you.name is SHAPE_CIRCLE: return pointcircle(me, you)
 	if me.name is SHAPE_CIRCLE and you.name is SHAPE_POINT: return circlepoint(me, you)
 
-	if me.name is SHAPE_POINT and you.name is SHAPE_LINE: return None
-	if me.name is SHAPE_LINE and you.name is SHAPE_POINT: return None
+	if me.name is SHAPE_POINT and you.name is SHAPE_LINE: return pointline(me, you)
+	if me.name is SHAPE_LINE and you.name is SHAPE_POINT: return linepoint(me, you)
 
 	if me.name is SHAPE_POINT and you.name is SHAPE_RECTANGLE: return pointrect(me, you)
 	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_POINT: return rectpoint(me, you)
+	"""
 
 def reverse_test(function):
-	""" Utility to create an inverted collision test function.
+	""" Utility to create an reversed collision test function.
 
 	e.g., if you pass it a circle-rect collision function, it will return a rect-circle collision function. This just
 	passes the output through if it's None and inverts it otherwise."""
@@ -95,12 +96,22 @@ def reverse_test(function):
 		output = function(shape_two, shape_one, *args, **kwargs)
 		if output is not None:
 			return -output
+		return None
 	new_func.__doc__ = function.__doc__
 	return new_func
 
 def steal_docstring(to_function, from_function):
 	"""Prepends the docstring from function_two to the docstring for function_one."""
 	to_function.__doc__ = from_function.__doc__ + (to_function.__doc__ or "")
+
+
+
+tests = []
+tests[SHAPE_CIRCLE] = []
+tests[SHAPE_LINE] = []
+tests[SHAPE_RECTANGLE] = []
+tests[SHAPE_POINT] = []
+
 
 def circlecircle(me,you):
 	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting.
@@ -118,19 +129,18 @@ def circlecircle(me,you):
 		separation_magnitude = abs(separation)
 		unit_separation = separation.unit()
 
-	ts = defaultTS
-	# TODO: Decide whether to leave in velocity corrections.
-	#if hasattr(me, "vel"): my_extents = (-me.shape.rad - ts*(me.vel*unit_separation), me.shape.rad - ts*(me.vel*unit_separation))
-	#else: 
 	my_extents = (-me.radius, me.radius)
-	#if hasattr(you, "vel"): your_extents = (-you.shape.rad + ts*(you.vel*unit_separation), you.shape.rad + ts*(you.vel*unit_separation))
-	#else: 
 	your_extents = (-you.radius, you.radius)
 	
-	output = intervalcompare(my_extents, your_extents, separation_magnitude, me.invert , you.invert )
+	output = compare_interval( my_extents, your_extents, separation_magnitude)
 
 	if output is None : return None
 	return output*unit_separation 
+tests[SHAPE_CIRCLE][SHAPE_CIRCLE] = circlecircle
+
+def lineline(me, you): # TODO: write this test.
+	return None
+steal_docstring(to_function=lineline, from_function=circlecircle)
 
 def linecircle(line, circle):
 	separation = line.position_component.position - circle.position_component.position
@@ -150,21 +160,22 @@ def linecircle(line, circle):
 	# If abs(newsep) is 0, then output should be circle.rad
 	# If abs(newsep) is circle.rad, then output should be 0.
 	if separation.x == 0 and separation.y == 0:
-		return -line.v.unit() * (circle.rad + line.thickness)
+		return -line.v.unit() * (circle.radius + line.thickness)
 	#if abs(separation) < circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness:
-	if abs(separation) < circle.rad + line.thickness:
+	if abs(separation) < circle.radius + line.thickness:
 		# If the separation is less than the combination of circle radius, line radius, and the perpendicular component of the circle's velocity...
 		#return separation.unit() * (circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness - abs(separation))
-		return separation.unit() * (circle.rad + line.thickness - abs(separation))
+		return separation.unit() * (circle.radius + line.thickness - abs(separation))
 	return None
 circleline = reverse_test(linecircle)
 steal_docstring(to_function=linecircle, from_function=circlecircle)
 steal_docstring(to_function=circleline, from_function=circlecircle)
 
+
 def rectrect(me, you):
 	separation = you.position_component.position - me.position_component.position
-	x = intervalcompare(me.xbounds, you.xbounds, separation.x)
-	y = intervalcompare(me.ybounds, you.ybounds, separation.y)
+	x = compare_interval(me.xbounds, you.xbounds, separation.x)
+	y = compare_interval(me.ybounds, you.ybounds, separation.y)
 	if x is None or y is None: 
 		return None
 	if abs(x) < abs(y):
@@ -172,6 +183,60 @@ def rectrect(me, you):
 	else:
 		return v(0, y)
 steal_docstring(to_function=rectrect, from_function=circlecircle)
+
+def rectcircle(me, you):
+	rect_min_corner = v(me.xbounds[0], me.ybounds[0]) + me.position_component.position
+	rect_max_corner = v(me.xbounds[1], me.ybounds[1]) + me.position_component.position
+	rect_center = (rect_min_corner + rect_max_corner) / 2
+
+	displacement = you.position_component.position - me.position_component.position
+	if displacement.x < me.xbounds[0]:
+		edge_x = -1
+	elif me.xbounds[0] < displacement.x < me.xbounds[1]:
+		edge_x = 0
+	elif me.xbounds[1] < displacement.x:
+		edge_x = +1
+	
+	if displacement.y < me.ybounds[0]:
+		edge_y = -1
+	elif me.ybounds[0] < displacement.y < me.ybounds[1]:
+		edge_y = 0
+	elif me.ybounds[1] < displacement.y:
+		edge_y = +1
+	
+	if abs(edge_x) == 1 and abs(edge_y) == 1:
+		x = rect_min_corner.x if edge_x < 0 else rect_max_corner.x
+		y = rect_min_corner.y if edge_y < 0 else rect_max_corner.y
+		corner = v(x, y)
+
+		vect = you.position_component.position - corner
+		if abs(vect) < you.radius:
+			return vect.unit() * (you.radius - abs(vect))
+		else:
+			return None
+
+	x_vect = compare_interval(me.xbounds, you.xbounds, displacement.x)
+	y_vect = compare_interval(me.ybounds, you.ybounds, displacement.y)
+
+	if x_vect is not None and y_vect is not None:
+		if abs(x_vect) > abs(y_vect):
+			return v(x_vect, 0)
+		else:
+			return v(0, y_vect)
+	elif x_vect is not None:
+		return v(x_vect, 0)
+	elif y_vect is not None:
+		return v(0, y_vect)
+circlerect = reverse_test(rectcircle)
+steal_docstring(to_function=rectcircle, from_function=circlecircle)
+steal_docstring(to_function=circlerect, from_function=circlecircle)
+
+def rectline(rect, line): # TODO: write this test
+	return None
+linerect = reverse_test(rectline)
+steal_docstring(to_function=rectline, from_function=circlecircle)
+steal_docstring(to_function=linerect, from_function=circlecircle)
+
 
 def pointpoint(me, you):
 	return v(0,1) if me.position_component.position == you.position_component.position else None
@@ -184,6 +249,33 @@ def circlepoint(me, you):
 pointcircle = reverse_test(circlepoint)
 steal_docstring(to_function=circlepoint, from_function=circlecircle)
 steal_docstring(to_function=pointcircle, from_function=circlecircle)
+
+def linepoint(line, point):
+	separation = line.position_component.position - point.position_component.position
+	
+	# TODO: Clean this up to be more readable, especially in the end bit.
+	# Comes from http://blog.generalrelativity.org/actionscript-30/collision-detection-circleline-segment-circlecapsule/ , pretty much.
+
+	# factor holds the location along the line's central axis of the closest point to the circle.
+	factor = (-separation).projs(line.v)
+	if factor < 0: factor = 0 
+	if factor > abs(line.v): factor = abs(line.v)
+
+	separation = (line.position_component.position + factor*line.v.unit()) - point.position_component.position
+
+	# If abs(separation) is 0, then output should be thickness.
+	# If abs(separation) is thickness, then output should be 0.
+	if separation.x == 0 and separation.y == 0:
+		return -line.v.unit() * line.thickness
+	#if abs(separation) < circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness:
+	if abs(separation) < line.thickness:
+		# If the separation is less than the combination of circle radius, line radius, and the perpendicular component of the circle's velocity...
+		#return separation.unit() * (circle.rad + defaultTS*abs(circleobj.vel*line.normal) + line.thickness - abs(separation))
+		return separation.unit() * (line.thickness - abs(separation))
+	return None
+pointline = reverse_test(linepoint)
+steal_docstring(to_function=linepoint, from_function=circlecircle)
+steal_docstring(to_function=pointline, from_function=circlecircle)
 
 def rectpoint(me, you):
 	my_min = v(me.xbounds[0], me.ybounds[0]) + me.position_component.position
@@ -208,7 +300,7 @@ steal_docstring(to_function=rectpoint, from_function=circlecircle)
 steal_docstring(to_function=pointrect, from_function=circlecircle)
 
 
-def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_inverted = False):
+def compare_interval(extentsme, extentsother, msep, me_inverted = False, other_inverted = False):
 	"""Returns the amount by which to move 'me' to ensure that two (1D) intervals are no longer intersecting, or none if they're already fine.
 	
 	extentsme and extentsother are tuples of left and right extents. 
@@ -218,18 +310,11 @@ def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_in
 	my_left, my_right = extentsme
 	your_left, your_right = extentsother[0]+msep, extentsother[1]+msep
 
-# Got bored. Decided to pack this down. Don't use this, it's unreadable pretty much by intent.
-#	mi, yi = me_inverted, other_inverted
-#	ml, mr, yl, yr = my_left, my_right, your_left, your_right
-#	if not mi and not yi and not (ml>yr or mr<yl): return min(yl-mr, yr-ml, key=abs)
-#	elif mi and not yi and not (ml<yl and mr>yr): return min(yr-mr, yl-ml, key=abs)
-#	elif not mi and yi and not (ml>yl and mr<yr): return min(yr-mr, yl-ml, key=abs)
-#	return None
-
 	#Possibilities:
-	# If we're both inverted, then it's like this:				]a	b[	}c	d{   then there's nothing we can do.
-	if me_inverted and other_inverted:
-		return None
+	# If neither of us are inverted, then it's like this:		[a	{c	b]	d}   then our options are a and d or b and c.
+	if not me_inverted and not other_inverted:
+		if (my_left > your_right or my_right < your_left): return None
+		return min(your_left - my_right, your_right - my_left, key=abs)
 	# If I'm inverted and he's not, then it's like this:		]a	b[	{c	d}   then we need to move to align b and d, or a and c.
 	elif me_inverted and not other_inverted:
 		if (my_left < your_left and my_right > your_right) : return None
@@ -238,10 +323,9 @@ def intervalcompare(extentsme, extentsother, msep, me_inverted = False, other_in
 	elif not me_inverted and other_inverted:
 		if (my_left > your_left and my_right < your_right): return None
 		return min(your_right - my_right, your_left - my_left, key=abs)
-	# If neither of us are inverted, then it's like this:		[a	{c	b]	d}   then our options are a and d or b and c.
-	elif not me_inverted and not other_inverted:
-		if (my_left > your_right or my_right < your_left): return None
-		return min(your_left - my_right, your_right - my_left, key=abs)
+	# If we're both inverted, then it's like this:				]a	b[	}c	d{   then there's nothing we can do.
+	elif me_inverted and other_inverted:
+		return None
 
 
 def point_in_object(vect, obj):
@@ -253,11 +337,18 @@ def point_in_object(vect, obj):
 		return False
 
 
-class Shape(object):
+class Shape(AbstractComponent):
+	""" An abstract "shape" component. """
 	def __init__(self, position = None, *args, **kwargs):
+		super(Shape, self).__init__(*args, **kwargs)
+
 		new_position = None
 		if position is None:
-			new_position = PositionComponent(owner=self)
+			if self.owner is not None:
+				if hasattr(self.owner, 'position_component'):
+					new_position = self.owner.position_component
+			else:
+				new_position = PositionComponent(owner=self)
 		elif isinstance(position, v):
 			new_position = PositionComponent(owner=self, position=position)
 		elif isinstance(position, PositionComponent):
@@ -277,7 +368,7 @@ class Point(Shape):
 
 class Line(Shape):
 	""" A line, potentially with rounded ends. """
-	def __init__(self, vector, thickness=0, draw_type=None, num_points = 9, depth=20, *args, **kwargs):
+	def __init__(self, vector=v(1,0), thickness=0, draw_type=None, num_points = 9, depth=20, *args, **kwargs):
 		super(Line, self).__init__(*args, **kwargs)
 		
 		self.name = SHAPE_LINE
@@ -346,15 +437,13 @@ class Line(Shape):
 		pyglet.gl.glPopMatrix()
 
 class Circle(Shape):
-	""" Makes a circle object, which has simplified extents/projection code.
-	Displays as a polygon with numpoints points.  Dynamic or fixed radius? For now, fixedish. or something.
-	"""
+	""" A simple circle. """
 	def __init__(self, numpoints = 30, rad = 30, drawtype = "lines", invert = False, depth=20, *args, **kwargs):
 		super(Circle, self).__init__(*args, **kwargs)
 		
 		self.name = SHAPE_CIRCLE
 		self.vlist = pyglet.graphics.vertex_list(numpoints,'v3f')
-		self.rad=rad
+		self.radius=rad
 		self.drawtype = drawtype
 		self.invert = invert
 
@@ -369,8 +458,8 @@ class Circle(Shape):
 	def draw(self, location=None, z=0):
 		""" Draws the polygon at the polygon's self.x, self.y locations, scaled by self.r, rotated self.rot. """
 		pyglet.gl.glPushMatrix()
-		pyglet.gl.glTranslatef(location.x,location.y,z)
-		pyglet.gl.glScalef(self.rad,self.rad,1.0)
+		pyglet.gl.glTranslatef(location.x, location.y, z)
+		pyglet.gl.glScalef(self.radius, self.radius, 1.0)
 		if self.drawtype is "outlined":
 			pyglet.gl.glColor3f(1.0,1.0,1.0)
 			self.vlist.draw(pyglet.gl.GL_POLYGON)

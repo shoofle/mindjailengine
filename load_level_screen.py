@@ -211,7 +211,7 @@ class TheScreen(object):
 			for col in set_of_collisions:
 				if not obj.collides_with(col.owner): continue
 				if not col.collides_with(obj.owner): continue
-				vector = shapes.intersect(obj, col)
+				vector = shapes.intersect(obj.shape, col.shape)
 				if vector is not None:
 					obj.collide(col)
 					col.collide(obj)
@@ -251,7 +251,13 @@ class PauseScreen(object):
 		self.pausetime = 0
 
 		self.top_text = "THE GAME! IT'S PAUSED!\nPress 'p' to unpause.\nKills: {0}"
-		self.bottom_text = "Don't forget: \nz to fire bullets! \nx to fire lasers! \nc to fire bombs! \narrows to move! \nesc to exit! \n\nd to activate debug drawing!"
+		self.bottom_text = "Don't forget: \n\
+z to fire bullets! \n\
+x to fire lasers! \n\
+c to fire bombs! \n\
+arrows to move! \n\
+esc to exit! \n\n\
+d to activate debug drawing!"
 
 		self.top_text_label = text.Label(
 				self.top_text.format(self.childscreen.killcount), \
@@ -274,7 +280,7 @@ class PauseScreen(object):
 		self.childscreen.draw()
 		self.top_text_label.draw()
 		self.bottom_text_label.draw()
-	# Listeners.
+	
 	def on_key_press(self, symbol, modifiers):
 		if symbol == key.P: 
 			if self.pausetime > 1:
