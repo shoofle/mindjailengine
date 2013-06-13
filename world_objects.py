@@ -14,8 +14,14 @@ from vectors import v
 #############################################
 ### The objects which populate the level! ###
 #############################################
+class Entity(object):
+	pass
 
-class FreeBall(object):
+#def MakeFreeBall(pscreen, location=v(0,0), rad=20, *args, **kwargs):
+#	output = Entity()
+#	addBasicComponent(output, 
+
+class FreeBall(Entity):
 	""" A circular object that can move and bounce freely. It's a circle! Woo."""
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
@@ -26,7 +32,7 @@ class FreeBall(object):
 		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
 		
 		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component) 
-class ObstacleBall(object):
+class ObstacleBall(Entity):
 	""" A ball fixed in space. """
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
@@ -37,7 +43,7 @@ class ObstacleBall(object):
 		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
 		
 		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
-class ObstacleLine(object):
+class ObstacleLine(Entity):
 	""" A line, potentially with rounded ends, fixed in space. """
 	def __init__(self, pscreen, location=v(0,0), endpoint=v(0,1), thick = 0,*args, **kwargs):
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
@@ -53,7 +59,7 @@ class ObstacleLine(object):
 ### Opponents!? ###
 ###################
 
-class Spawner(object):
+class Spawner(Entity):
 	""" A circular area that spawns EnemyBalls until it reaches the max, with chance spawn_chance every frame. """
 	def __init__(self, pscreen, location=v(0,0), rad=100, z=0.25, *args, **kwargs):
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
@@ -82,7 +88,7 @@ class Spawner(object):
 
 			self.spawn_count = self.spawn_count + 1
 
-class EnemyBall(object):
+class EnemyBall(Entity):
 	""" An enemy ball, which can be destroyed by bullets. """
 	def __init__(self, pscreen, location=v(0,0), rad=30, *args, **kwargs):
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
@@ -104,7 +110,7 @@ class EnemyBall(object):
 ### Player, Bullets, Camera. ###
 ################################
 
-class PlayerBall(object):
+class PlayerBall(Entity):
 	""" The player. Oh my, but this is a big class. Oh well. It's an important object. """
 	def __init__(self,pscreen, location=v(0,0), *args, **kwargs):
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
@@ -165,7 +171,7 @@ class PlayerBall(object):
 	def on_mouse_drag(self, x, y, dx, dy, button, modifiers): pass
 	def on_mouse_motion(self, x, y, dx, dy): pass
 
-class BulletBall(object):
+class BulletBall(Entity):
 	""" A projectile object. It's a circle! Woo."""
 	def __init__(self, pscreen, parent, location=v(0,0), *args, **kwargs):
 		self.parent = parent
@@ -193,7 +199,7 @@ class BulletBall(object):
 		if self.time>self.time_to_live:
 			self.basic_component.dead = True
 
-class LaserLine(object):
+class LaserLine(Entity):
 	""" A laser beam! """
 	def __init__(self, pscreen, parent,location=v(0,0), direction=v(0,1), length=1000, *args, **kwargs):
 		self.parent = parent
@@ -221,7 +227,7 @@ class LaserLine(object):
 		self.renderable_component.color = (0.0, 0.0, 1.0-(self.time/self.time_to_live), 1.0-(self.time/self.time_to_live))
 		if self.time>self.time_to_live: self.basic_component.dead = True
 
-class BombBall(object):
+class BombBall(Entity):
 	""" A bomb, which explodes after a certain amount of time to throw things flying. """
 	def __init__(self, pscreen, parent, location=v(0,0)):
 		self.parent = parent
@@ -245,7 +251,7 @@ class BombBall(object):
 			self.basic_component.parent_screen.add_entity( new_explosion  )
 			self.basic_component.dead = True
 		self.renderable_component.color = ((self.time/self.time_to_live), 0.0, 0.0, 1.0)
-class BombExplosion(object):
+class BombExplosion(Entity):
 	""" The explosion for the bomb. This is a non-tangible object which needs to collide with things. """
 	def __init__(self, pscreen, parent, location=v(0,0)):
 		self.parent = parent
@@ -271,7 +277,7 @@ class BombExplosion(object):
 			self.basic_component.dead = True
 		self.renderable_component.color = (1.0-self.time/self.time_to_live, 0, 0, 1.0-self.time/self.time_to_live)
 
-class CameraFollower(object):
+class CameraFollower(Entity):
 	""" This object follows the latch and defines the drawing frustrum and basically sets up cameras. """
 	def __init__(self, pscreen, latch=None, spring=30, damping=2):
 		self.template_text = "FPS: {0:.2f}\n# of Objects: {1}\n# of Non-Static: {2}"

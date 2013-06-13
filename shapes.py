@@ -106,11 +106,6 @@ def steal_docstring(to_function, from_function):
 
 
 
-tests = []
-tests[SHAPE_CIRCLE] = []
-tests[SHAPE_LINE] = []
-tests[SHAPE_RECTANGLE] = []
-tests[SHAPE_POINT] = []
 
 
 def circlecircle(me,you):
@@ -136,7 +131,6 @@ def circlecircle(me,you):
 
 	if output is None : return None
 	return output*unit_separation 
-tests[SHAPE_CIRCLE][SHAPE_CIRCLE] = circlecircle
 
 def lineline(me, you): # TODO: write this test.
 	return None
