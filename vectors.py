@@ -1,7 +1,13 @@
 import math
 
 class v(object):
-	""" Two-dimensional vector. """
+	""" Full-featured two-dimensional vector.
+	
+	I'm not sure if there are speed concerns here or not. This class has two members, x and y, which are the coordinates.
+	There are a lot of arithmetic functions defined here. Notably, multiplication checks to see if the other has a dot product, and if so does that.
+	There's also a rescale function, which sets the length, and for the most part functions do what their mathematical counterparts do.
+	Potentially confusing things: vect.proj(other) will return the component of vect in the direction of other, as a vector.
+	vect.projs(other) will return the length of that vector. vect.rperp() and vect.lperp() rotate the vector by 90 degrees, respectively."""
 	def __init__(self, x, y):
 		self.x = x
 		self.y = y
@@ -33,17 +39,28 @@ class v(object):
 	def __ne__(self,other):
 		return not self.__eq__(other)
 	def dot(self,other): # Quack!
+		""" Dot product of two vectors, which need x and y coordinates. """
 		return self.x*other.x + self.y*other.y
+	def cross_product(self, other): 
+		""" Magnitude of the cross product of self and other. """
+		return self.x*other.y - self.y*other.x
+	def rescale(self, length):
+		mag = abs(self)
+		if mag == 0: return self
+		else: return v(self.x*length/mag, self.y*length/mag)
 	def unit(self):
-		if abs(self) == 0: return self
-		else: return v(self.x/abs(self), self.y/abs(self))
+		return self.rescale(1)
 	def proj(self,other):
+		""" The component of this vector which is parallel with other."""
 		return (self*other.unit()) * other.unit()
 	def projs(self,other):
-		return self*other.unit()
+		""" The length of the parallel-with-other component of this vector."""
+		return self*other.rescale(1)
 	def rperp(self):
-		return v(self.x, -self.y)
+		""" Return a copy of the vector, rotated by 90 degrees clockwise."""
+		return v(self.y, -self.x)
 	def lperp(self):
-		return v(-self.x, self.y)
+		""" Return a copy of the vector, rotated 90 degrees anticlockwise."""
+		return v(-self.y, self.x)
 	def __repr__(self):
 		return "v({},{})".format(self.x, self.y)
