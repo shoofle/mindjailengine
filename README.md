@@ -14,14 +14,12 @@ Unfortunately, pyglet is ailing and unhappy and doesn't play nice with 64-bit ma
 
 --------
 
-Much of my work on this project (certainly unreasonably much of it) is recorded in `collision_structures.py`. There you can see a wide array (hah!) of data structures I've developed for the purpose of speeding up collision detection. Fast collision detection is a challenge for any system of interacting dynamic objects, and it's certainly made no easier by python's less-than-urgent nature. At the moment I am fairly well satisfied with the spatial hashing algorithm I've implemented in the SpatialGrid class, and I hope to move to other things promptly.
+Fast collision detection is a python for any system of interacting dynamic objects, and it's made no easier by python's less-than-urgent nature. This project has given me a better visceral appreciation for data structures and algorithmic speed than anything else I've worked on - including precisely how *magical* hash tables are. Collision detection is facilitated in this engine by a multi-tiered spatial hashing structure, which can be found in `collision_structures.py`. It is occasionally referred to as a tree, because I haven't gotten around to refactoring from when I was using quadtrees.
 
 --------
 
-In the future, I'm hoping to move to something like a component-entity system, but my one attempt at it made me realize just how rusty I am at the task of weaving a whole system from fibers of thought. Well, I'm going to move towards it at some point - right now `mod_screen.py` is just a little too cluttered. I'm also considering changing the names for a lot of functions, which weren't named very well.
+This engine runs on a component-entity system - if you want an entity to have a physics component, you set entity.physics\_component to be a PhysicsComponent. The component classes are defined (at least for the most part) in components.py. This system is fairly new and still in the throes of its birth.
 
 --------
 
-I'm working on this with the intent of making a game in it, for funsies and for learning experience. I started this in my second year of college, and I wasn't particularly experienced then - and while I'm by no means a guru, I've grown a lot. What I'm saying is that I'm really nervous about people looking at old code I've written.
-
-
+I'm working on this with the intent of making a game in it, for funsies and for learning experience. I started this in my second year of college, and I wasn't particularly experienced then - and while I'm by no means a guru, I've grown a lot. What I'm saying is that I'm really nervous about people looking at old code I've written. Look with care! I'm also always, *always* happy to hear advice. If you've got something to add or contribute, I'm interested!

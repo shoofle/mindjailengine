@@ -16,6 +16,9 @@ write levels as hierarchical bounding volumes -> most sensible way to group obje
 
 
 
+
+
+Component Hierarchies: Should they be strict about their requirements? I.E., if I try to instantiate a Shape component, but there's no Position around, should it fail? Should it make a dummy Position? At the moment it's doing the latter, but the former seems better.
 1)
 BasicComponent
 Position
