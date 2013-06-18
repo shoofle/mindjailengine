@@ -1,4 +1,6 @@
 from OpenGL.GL import *
+from OpenGL.GL import shaders
+from OpenGL.arrays import vbo
 
 from PyQt4 import QtCore
 from PyQt4.QtGui import *
@@ -10,11 +12,10 @@ import math
 
 class OpenGLPane(QGLWidget):
 	def paintGL(self):
-		""" Override this to write to stuff. The problem was that we were clearing the screen, and then trying to draw a bunch of stuff, but it was happening in the wrong order..."""
-#		glClearColor(0, 0, 0, 1.0)
-#		glClear(GL_COLOR_BUFFER_BIT)
-#		for b in bwonkers:
-#			b.update()
+		glClearColor(0, 0, 0, 1.0)
+		glClear(GL_COLOR_BUFFER_BIT)
+
+		for b in bwonkers: b.update()
 
 	def resizeGL(self, width, height):
 		glMatrixMode(GL_PROJECTION)
@@ -37,6 +38,7 @@ class Bwonker(object):
 		self.position = position
 		self.size = size
 	def update(self):
+		pane.makeCurrent()
 		if randint(0, self.scatter) == 0:
 			angle = random()*2*math.pi
 			self.speed = v(math.sin(angle), math.cos(angle))*abs(self.speed)
@@ -47,55 +49,73 @@ class Bwonker(object):
 
 		glPushMatrix()
 		
-		glColor4f(*self.color)
 		glTranslatef(self.position.x, self.position.y, 0)
-		glRectf(-self.size, -self.size, self.size, self.size)
+		shaders.glUseProgram(shader)
+		try:
+			square_vbo.bind()
+			try:
+				glEnableClientState(GL_VERTEX_ARRAY)
+				glVertexPointerf(square_vbo)
+				glDrawArrays(GL_TRIANGLES,0,6)
+			finally:
+				square_vbo.unbind()
+				glDisableClientState(GL_VERTEX_ARRAY)
+		finally:
+			shaders.glUseProgram(0)
 
+		#glRectf(-self.size, -self.size, self.size, self.size)
 		glPopMatrix()
 
 
 def update():
-	widget.current.updateGL()
-	glClearColor(0, 0, 0, 1.0)
-	glClear(GL_COLOR_BUFFER_BIT)
-	for b in bwonkers:
-		b.update()
+	pane.updateGL()
+#	print bwonkers[len(bwonkers)-1].position
 
+print(glGetString(GL_VERSION))
+
+# OpenGL Shader type stuff
+vertex_shader = shaders.compileShader("""
+#version 330
+void main() {
+  gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+}""", GL_VERTEX_SHADER)
+fragment_shader = shaders.compileShader("""
+#version 330
+void main() {
+  gl_FragColor = vec4(0,1,0,0);
+}""", GL_FRAGMENT_SHADER)
+shader = shaders.compileProgram(vertex_shader, fragment_shader)
+
+data = array([
+	[-1,-1, 0],
+	[ 1,-1, 0],
+	[ 1, 1, 0],
+	[-1,-1, 0],
+	[ 1, 1, 0],
+	[-1, 1, 0]
+	],'f')
+square_vbo = vbo.VBO(data)
+
+
+
+
+app = QApplication(["Shoofle's PyQt application"])
+widget = QWidget()
+
+layout = QHBoxLayout()
+
+scroller = QScrollArea()
+layout.addWidget(scroller)
+
+pane = OpenGLPane()
+pane.setMinimumSize(700,700)
 bwonkers = []
 for i in range(10):
 	b = Bwonker(position=v(uniform(-10, 10), uniform(-10, 10)), scatter=randint(1, 20), speed=uniform(0.1,1))
 	bwonkers.append(b)
 
-def switch_pane():
-	if widget.current is pane_one:
-		widget.current = pane_two
-	else:
-		widget.current = pane_one
-	widget.current.makeCurrent()
 
-
-app = QApplication(["Shoofle's PyQt application"])
-widget = QWidget()
-widget.current = None
-
-layout = QVBoxLayout()
-
-button = QPushButton('Switch Rendering Pane', widget)
-button.clicked.connect(switch_pane)
-layout.addWidget(button)
-
-splitter = QSplitter(QtCore.Qt.Horizontal)
-layout.addWidget(splitter)
-
-pane_one = OpenGLPane()
-#pane_one.setMinimumSize(300,600)
-splitter.addWidget(pane_one)
-
-pane_two = OpenGLPane()
-#pane_two.setMinimumSize(300,600)
-splitter.addWidget(pane_two)
-
-widget.current = pane_one
+layout.addWidget(pane)
 
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
