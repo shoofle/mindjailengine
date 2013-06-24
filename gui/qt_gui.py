@@ -8,6 +8,28 @@ from vectors import v
 from random import random, uniform, randint
 import math
 
+"""
+Screen class accesses the PyQt app, and specifically the widget that defines the screen.
+Let's think about a handful of screens - the menu screen, gameplay screen, pause screen.
+
+Menu looks like:
+	List of files
+	Load level button
+	Quit button?
+	Adjust settings?
+
+Gameplay looks like:
+	OpenGL pane
+
+Pause screen loads from Gameplay screen and uses the same OpenGL pane, keeping it present
+`	OpenGL pane
+
+when you go from Menu->Gameplay, it un-displays all the menu widgets, and displays all the gameplay widgets.
+It then starts running the gameplay screen logic.
+When you go from Menu->Pause, it doesn't un-display the menu widgets, but it then displays all the pause widgets.
+
+"""
+
 class OpenGLPane(QGLWidget):
 	def paintGL(self):
 		""" Override this to write to stuff. The problem was that we were clearing the screen, and then trying to draw a bunch of stuff, but it was happening in the wrong order..."""
