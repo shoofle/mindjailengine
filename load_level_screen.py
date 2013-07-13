@@ -16,7 +16,7 @@ from components import *
 from world_objects import *
 
 """ A class containing a module for the game. """
-class TheScreen(object):
+class GameplayScreen(object):
 	""" Encapsulates the main action of gameplay - whizzing around in a terrain, shooting things, etc.
 
 	In the future, a lot of the behavior handled here will be offloaded to level-specific scripting and such,

@@ -59,20 +59,19 @@ class SpatialGrid(object):
 	
 	def grid_space(self, item):
 		""" Returns a generator for the grid squares the object might be contacting, including neighbors. """
-		min_x = int(math.floor( item.x_min /self.grid_size)) 
-		max_x = int(math.floor( item.x_max /self.grid_size))
-		min_y = int(math.floor( item.y_min /self.grid_size))
-		max_y = int(math.floor( item.y_max /self.grid_size))
+		min_x = int(math.floor( item.x_min / self.grid_size)) 
+		max_x = int(math.floor( item.x_max / self.grid_size))
+		min_y = int(math.floor( item.y_min / self.grid_size))
+		max_y = int(math.floor( item.y_max / self.grid_size))
 		
 		return ((i,j) for i in range(min_x-1, max_x+2) for j in range(min_y-1, max_y+2) if (i,j) in self.grid)
 
 	def collisions(self, item):
-		""" Returns all objects colliding with this one. """
+		""" Returns all objects colliding with the argument. """
 		if self.secondary is not None: output = self.secondary.collisions(item)
 		else: output = set()
 
-		return reduce(lambda acc, location: acc | self.grid[location].collisions(item), self.grid_space(item), output)	
-	
+		return reduce(lambda acc, location: acc | self.grid[location].collisions(item), self.grid_space(item), output)
 
 	def append(self, item):
 		""" Add item to the spatial grid. If it is too big, it will get bumped up to the secondary data structure. """

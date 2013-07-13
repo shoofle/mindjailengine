@@ -30,8 +30,8 @@ class GameWindow(window.Window):
 	  At the moment we use pyglet, but... that might not stay.
 
 	"""
-	def __init__(self, screen_module = None, *args, **kwargs):
-		"""Set us up the window!"""
+	def __init__(self, *args, **kwargs):
+		"""Set us up the window! This just initializes application-global settings - nothing that belongs to any particular state."""
 		window.Window.__init__(self, *args, **kwargs)
 		self.set_mouse_visible(False)
 
@@ -84,7 +84,7 @@ class GameWindow(window.Window):
 	def on_mouse_motion(self, x, y, dx, dy): 
 		self.thescreen.on_mouse_motion(x,y,dx,dy)
 
-
+# Don't actually need this stuff, I guess.
 if __name__ == "__main__":
 	"""What to do if we're being launched directly!"""
 	wind = GameWindow()
