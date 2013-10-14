@@ -8,6 +8,8 @@ class v(object):
 	There's also a rescale function, which sets the length, and for the most part functions do what their mathematical counterparts do.
 	Potentially confusing things: vect.proj(other) will return the component of vect in the direction of other, as a vector.
 	vect.projs(other) will return the length of that vector. vect.rperp() and vect.lperp() rotate the vector by 90 degrees, respectively."""
+	__slots__ = ['x', 'y']
+	
 	def __init__(self, x, y):
 		self.x = x
 		self.y = y
