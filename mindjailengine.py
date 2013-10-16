@@ -1,93 +1,99 @@
 #!/bin/usr/python
 ############################## Sup, dawg.
-# This is a game engine or something, by Shoofle Munroe, this is being written at jul 24, 3:51 PM, contact me if you wanna use stuff or whatever at xsigma@gmail.com . Thanks!
+# This is a game engine or something, by Shoofle Munroe, this is being written at jul 24, 3:51 PM, 2013 (probably), contact me if you wanna use stuff or whatever at xsigma@gmail.com . Thanks!
 ############################## Wheeeeee! a game engine! and games!
 
 import pyglet
 from pyglet import window, clock, text
 
-import load_level_screen as mod_screen
 from vectors import v
-
-import cProfile
 
 class GameWindow(window.Window):
 	"""This class represents the main window for the game. 
 
-	This class is instantiated once, for the window the game runs in. 
-	Instantiating this is how the game starts everything.
-	This object creates a screen, from mod_screen, on the line under "list of screens to prepare".
-	It then updates that screen at 60fps.
 	Screens take a reference to the window that displays them in their constructor, and, to change 
-	  what screen is up, simply change what window.thescreen points to. For example, when you pause 
-	  the game, the main game screen (an instance of mod_screen.TheScreen) instantiates a new 
-	  PauseScreen, gives it a pointer to itself, and then sets window.thescreen = pause_screen_instance.
-	Now the pause screen is the active screen, and it knows the screen that instantiated it, which it
-	  can return to at any point.
+		what screen is up, simply change what window.thescreen points to.
 
 	This GameWindow class also takes care of input handling, and in theory the screens should be able to 
-	  just use a standard interface instead of having to interface with whatever windowing library we use.
-	  At the moment we use pyglet, but... that might not stay.
+		just use a standard interface instead of having to interface with whatever windowing library we use.
+		At the moment we use pyglet, but... that might not stay.
 
+	I'm not actually sure whether the main engine entry point - for starting applications and stuff - should be a the window or the app. The app makes a little more sense to me, but pyglet has a really lightweight object for it - it's basically just the event loop. I think it'd make it harder to refactor to a different windowing system.
 	"""
-	def __init__(self, *args, **kwargs):
-		"""Set us up the window! This just initializes application-global settings - nothing that belongs to any particular state."""
+
+	def __init__(self, screen_module = None, *args, **kwargs):
 		window.Window.__init__(self, *args, **kwargs)
 		self.set_mouse_visible(False)
 
-		#self.gridres = 10
+		self.keys_have_been_pressed = False
 
-		# self.keyst is the dict of all the keys which are currently being pressed, referenced by symbol strings from key.
-		self.keyspressed = False
+		self.total_time = 0
+		self.framerate = 0
+		self.framerate_decay = 0.6
 
-		# keytext is a multi-line label to hold data about what keys are being pressed, and, um, stuff?
-		# Should have a height of three lines, 40 characters wide?
-		self.runtime = 0
-		self.numsteps = 0
-		self.avefps = 0
-		self.decay = 0.6
-
-		# List of screens to prepare.
-		clock.set_fps_limit(60)
+		# The 'clock' object pyglet provides is global. It might be nice to give us engine-specific clock functionality, or have this here for switching to a different windowing library in the future. Maybe this is just overthinking it! Anyway, this exposes it to the guts of the game in case they need it.
+		self.clock = clock
+		self.clock.set_fps_limit(60)
 
 	def main_loop(self):
-		"""Main runtime loop, which calls the stuff."""
-		dt = clock.tick()
+		"""The main execution loop for the program."""
+		dt = self.clock.tick()
 
-		while not self.has_exit:
+		while not self.has_exit: # This should be changed to simply use pyglet's on_draw event. I think.
 			dt = clock.tick()
 
-			self.dispatch_events()
-			self.clear()
+			self.update(dt)
 
-			self.thescreen.draw()
-			self.thescreen.update(dt)
+	def update(self, time_step):
+		self.dispatch_events() # Apparently this is just a legacy call, that we don't need. Uh oh! Most applications are supposed to use the pyglet.app.run function. Huh. I guess this whole thing could do with more severe refactoring.
+		self.clear()
 
-			self.runtime = self.runtime + dt
-			self.avefps = (1-self.decay)/dt + self.decay*self.avefps
+		# Draw the screen! This should, probably, be moved into an on_draw behavior. TODO!
+		self.thescreen.draw()
 
-			self.flip()
+		# Do world logic screen updates!
+		self.thescreen.update(time_step)
 
+		# Keep a running time. You gotta have a running time!
+		self.total_time = self.total_time + time_step
+
+		# Calculate the framerate as a running average. This is a little thing, but hey. I like it. Sometimes you gotta know your framerate! And sometimes you gotta know your framerate in such a way that it's not extremely sensitive to tiny variations!
+		self.framerate = (1-self.framerate_decay)*(1/time_step) + self.framerate_decay*self.framerate
+
+		self.flip() # if we're using on_draw, then we don't need this at all.
+
+	"""Pyglet has a number of input event functions. These handlers simply pass them through to the active screen."""
 	def on_key_press(self, symbol, modifiers):
-		self.keyspressed = True
+		# on_key_press and on_key_release both have a little bit of weirdness. This is just to deal with the fact that we don't want to accept a "key has been released!" event if the key was pressed before the window opened. This is a little bit hacky - in theory, it should do this on a per-key basis. It might not even be necessary, though!
+		# I'm not sure if this slows the game down at all. I assume it doesn't.
+		self.keys_have_been_pressed = True
 		self.thescreen.on_key_press(symbol, modifiers)
 		window.Window.on_key_press(self, symbol,modifiers)
 	def on_key_release(self,symbol,modifiers):
-		if not self.keyspressed: pass 
-		#if hasattr(self.thescreen, 'on_key_release'):
+		# See also the comment in on_key_press about the check for whether keys have been pressed.
+		if not self.keys_have_been_pressed: return 
 		self.thescreen.on_key_release(symbol, modifiers)
 	def on_mouse_press(self, x, y, button, modifiers): 
-		#if hasattr(self.thescreen, 'on_mouse_press'):
 		self.thescreen.on_mouse_press(x, y, button, modifiers)
 	def on_mouse_drag(self, x, y, dx, dy, button, modifiers): 
 		self.thescreen.on_mouse_drag(x, y, dx, dy, button, modifiers)
 	def on_mouse_motion(self, x, y, dx, dy): 
-		self.thescreen.on_mouse_motion(x,y,dx,dy)
+		self.thescreen.on_mouse_motion(x, y, dx, dy)
 
-# Don't actually need this stuff, I guess.
+
+# This branch - executed if this file is run directly as a script - is no longer necessary. 
+# The behavior to start the application has been moved to the file `run_game.py`.
+# This is only being kept for legacy purposes, or maybe for debug. Maybe it's just to make me feel better!
+debug = False
 if __name__ == "__main__":
 	"""What to do if we're being launched directly!"""
 	wind = GameWindow()
+
+	import mod_screen as screen_module
 	wind.thescreen = screen_module.TheScreen(wind)
-#	cProfile.run('wind.main_loop()')
-	wind.main_loop()
+
+	if debug:
+		import cProfile
+		cProfile.run('wind.main_loop()')
+	else:
+		wind.main_loop()
