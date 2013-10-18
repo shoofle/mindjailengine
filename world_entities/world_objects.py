@@ -24,14 +24,15 @@ class Entity(object):
 class FreeBall(Entity):
 	""" A circular object that can move and bounce freely. It's a circle! Woo."""
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.position_component = PositionComponent(owner=self, position=location)
+		attach_basic(self, screen=pscreen)
+		attach_position(self, position=location)
+
+		attach_shape(self, shapes.Circle(rad=rad, drawtype="3d"))
+		attach_physics(self, immobile=false)
+		attach_rendering(self)
+
+		attach_collision(self)
 		
-		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="3d")
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=False)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
-		
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component) 
 class ObstacleBall(Entity):
 	""" A ball fixed in space. """
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):

@@ -15,10 +15,17 @@ class BasicComponent(AbstractComponent):
 		self.dead = dead
 	def update(self, timestep): pass
 
+def attach_basic(target, *arguments, **keyword_arguments):
+	target.basic_component = BasicComponent(*arguments, **keyword_arguments)
+
 class PositionComponent(AbstractComponent):
 	def __init__(self, position=None, *args, **keyword_args):
 		super(PositionComponent, self).__init__(*args, **keyword_args)
 		self.position = position or v(0,0)
+
+def attach_position(target, *arguments, **keyword_arguments):
+	target.position_component = PositionComponent(*arguments, **keyword_arguments)
+# TODO: keep writing these attach functions, I guess
 
 class CollisionComponent(AbstractComponent):
 	def __init__(self, shape=None, position_component=None, physics_component=None, immobile=None, *args, **keyword_args):
@@ -61,6 +68,10 @@ class CollisionComponent(AbstractComponent):
 		self.x_max = self.x_pos + self.shape.xbounds[1]
 		self.y_min = self.y_pos + self.shape.ybounds[0]
 		self.y_max = self.y_pos + self.shape.ybounds[1]
+
+def attach_collision(target, *arguments, **keyword_arguments):
+	target.collision_component = CollisionComponent(*arguments, **keyword_arguments)
+
 
 class PhysicsComponent(AbstractComponent):
 	def __init__(self, position_component=None, pos=None, vel=None, acc=None, shape=None, tangible=True, immobile=False, world_forces=True, *args, **keyword_args):
