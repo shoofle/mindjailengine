@@ -36,11 +36,11 @@ class GameWindow(window.Window):
 
 		self.thescreen.draw()
 
-	def update(self, time_step):
-		if time_step > self.maximum_frame_length:
-			dt = self.maximum_frame_length
+	def update(self, dt):
+		if dt > self.maximum_frame_length:
+			time_step = self.maximum_frame_length
 		else:
-			dt = time_step
+			time_step = dt
 
 		# Do world logic screen updates!
 		self.thescreen.update(time_step)
