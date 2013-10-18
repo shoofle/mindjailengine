@@ -6,7 +6,7 @@ from world_objects import *
 def generate(self):
 	manifest = []
 
-	playerobj = PlayerBall(self, location = v(0,0))
+	playerobj = PlayerBall(self, location = v(0, 1000))
 	manifest.append( playerobj )
 	manifest.append( CameraFollower(self, latch=playerobj, spring=50, damping=10) )
 
