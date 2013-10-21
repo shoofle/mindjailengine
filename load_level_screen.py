@@ -7,44 +7,31 @@ from vectors import v
 import collision_structures
 
 from components import *
-from world_objects import *
+from world_entities import *
 
-""" A class containing a module for the game. """
 class GameplayScreen(object):
-	""" Encapsulates the main action of gameplay - whizzing around in a terrain, shooting things, etc.
+	"""All the main action of gameplay - whizzing around in a terrain, shooting things, etc.
 
-	In the future, a lot of the behavior handled here will be offloaded to level-specific scripting and such,
-	  but TheScreen (TODO: retitle to something descriptive) should handle tracking the set of objects, firing
-	  keyboard events to the objects that want them, collision detection, physics in general, collision events,
-	  and for now it tracks health and score and such.
-	TheScreen.addcomponent(thing, static, priority, listener), which adds 'thing' to the components list.
+	In the future, a lot of the behavior handled here will be offloaded to level-specific scripting and such, but GameplayScreen (TODO: retitle to something more descriptive) should handle tracking the set of objects, firing keyboard events to the objects that want them, collision detection, physics in general, collision events, and for now it tracks health and score and such.
+	GameplayScreen.addcomponent(thing, static, priority, listener), which adds 'thing' to the components list.
 
-	TODO: this is going to be changed over to a component-entity system to separate out physics from other behaviors.
-	  Instead, there's going to be a... recipe? system, wherein objects will be built by requesting a new entity 
-	  identifier (just a unique reference to a new object) and then adding a number of components, each of which
-	  describes one aspect of the entity's behavior, to it. So it should look like this:
-	    player_object = self.new_entity()
-	    player_object.add_components(RigidBody, CameraFollower, Drawable, ControlsListener, BallFlightBehaviors)
-	    player_object.RigidBody.position = 0,0
-	    player_object.RigidBody.mass, player_object.RigidBody.radius = 5, 10
-	    player_object.CameraFollower.spring_constant = 10
-	    player_object.Drawable = # no idea how this is going to be defined in practice
-	  and that would add those behaviors into the entity, and also to the systems that define how they behave.
-	  Some components require other components, so for example when it adds BallFlightBehaviors, it checks to see
-	    if there's a ControlsListener attached to this entity. Some components are simply collections of 
-	    components - the RigidBody component is a Position component plus a Shape component, with a mass and so on.
-	  So RigidBody would define the solid dynamics of it, CameraFollower would make sure that our camera follows,
-	    ControlsListener would get events and pass them in, and BallFlightBehaviors would make it so that
-	    those events are handled and turned into flying around.
-	  A free-falling ball might look like this:
+	TODO: this is going to be changed over to a component-entity system to separate out physics from other behaviors. Instead, there's going to be a... recipe? system, wherein objects will be built by requesting a new entity identifier (just a unique reference to a new object) and then adding a number of components, each of which describes one aspect of the entity's behavior, to it. So it should look like this:
+		player_object = self.new_entity()
+		player_object.add_components(RigidBody, CameraFollower, Drawable, ControlsListener, BallFlightBehaviors)
+		player_object.RigidBody.position = 0,0
+		player_object.RigidBody.mass, player_object.RigidBody.radius = 5, 10
+		player_object.CameraFollower.spring_constant = 10
+		player_object.Drawable = # no idea how this is going to be defined in practice
+	and that would add those behaviors into the entity, and also to the systems that define how they behave.
+	Some components require other components, so for example when it adds BallFlightBehaviors, it checks to see if there's a ControlsListener attached to this entity. Some components are simply collections of components - the RigidBody component is a Position component plus a Shape component, with a mass and so on.
+	So RigidBody would define the solid dynamics of it, CameraFollower would make sure that our camera follows, ControlsListener would get events and pass them in, and BallFlightBehaviors would make it so that those events are handled and turned into flying around.
+	A free-falling ball might look like this:
 	    free_ball = self.new_entity()
 	    free_ball.add_components(RigidBody, Drawable)
-	  An enemy spawner would look like this:
+	An enemy spawner would look like this:
 	    spawner = self.new_entity()
 	    spawner.add_components(RigidBody, Drawable, EnemyCreatingBehavior)
-	  These would all be defined in functions so that instead you can simply say make_spawner(location) twice 
-	    instead of having to actually define the spawner twice. That function is what I call a recipe - it says
-	    "make a new entity, and put on the following pieces in this order".
+	These would all be defined in functions so that instead you can simply say make_spawner(location) twice instead of having to actually define the spawner twice. That function is what I call a recipe - it says "make a new entity, and put on the following pieces in this order".
 	That's a lot of words.
 	"""
 	def __init__(self, window, file_name):
@@ -56,11 +43,11 @@ class GameplayScreen(object):
 
 		self.killcount = 0
 		self.total_time = 0
-		self.camera_rect = CollisionComponent(owner=None, pos=v(0,0), shape=shapes.Rectangle(-1,1,-1,1)) # (xmin, xmax), (ymin, ymax)
+		self.camera_rect = CollisionComponent(owner=None, pos=v(0,0), shape=shapes.Rectangle(-1,1,-1,1))
 		self.constants = {'drag':10, 'gravity':v(0,-30000), 'elasticity':0.7, 'friction':0.9, 'displace':0.7}
 
 		opengl.glEnable(opengl.GL_BLEND)
-		opengl.glBlendFunc(opengl.GL_SRC_ALPHA,opengl.GL_ONE)
+		opengl.glBlendFunc(opengl.GL_SRC_ALPHA, opengl.GL_ONE)
 		opengl.glLineWidth(2.0)
 
 #		opengl.glEnable(opengl.GL_POINT_SMOOTH)
@@ -73,18 +60,12 @@ class GameplayScreen(object):
 		#Activate the depth buffer.
 		opengl.glEnable(opengl.GL_DEPTH_TEST)
 
-		#Lighting!
-		#opengl.glEnable(opengl.GL_LIGHTING)
-		#opengl.glEnable(opengl.GL_LIGHT0)
-		#opengl.glLightf(opengl.GL_LIGHT0, opengl.GL_LINEAR_ATTENUATION, 0.05)
-
 		###########
 		# Now, since this screen represents gameplay, we're going to initialize all the elements of the game we're playing.
 		# For now, this is just a pile of stuff.
 		###########
 		
 		# Set up all the different lists of objects in the world. These roughly correspond to managers! Sort of.
-		
 		self.entities = []
 		
 		self.physics_objects = []
@@ -96,18 +77,15 @@ class GameplayScreen(object):
 		self.draw_objects = []
 		self.draw_priority = []
 		self.draw_tree = collision_structures.SpatialGrid()
-		self.draw_tree.camera_rect = CollisionComponent(owner=None, pos=v(0,0), shape=shapes.Rectangle(-1,1,-1,1))
+		self.draw_tree.camera_rect = self.camera_rect #CollisionComponent(owner=None, pos=v(0,0), shape=shapes.Rectangle(-1,1,-1,1))
 		
 		self.listeners = []
 
 		try:
 			import importlib
 			level_data = importlib.import_module("levels." + file_name)
-			
-			print(dir(level_data))
-			
-			manifest = level_data.generate(self)
-			for item in manifest:
+
+			for item in level_data.generate(self):
 				self.add_entity(item)
 		except ImportError as e:
 			print("Error loading the level " + file_name)
@@ -172,17 +150,22 @@ class GameplayScreen(object):
 
 		for thing in dead_things:
 			self.entities.remove(thing)
-			if thing.physics_component in self.physics_objects: 	self.physics_objects.remove(thing.physics_component)
-			
-			if thing.collision_component in self.collision_objects: self.collision_objects.remove(thing.collision_component)
-			if thing.collision_component in self.nonstatic_objects: self.nonstatic_objects.remove(thing.collision_component)
-			if thing.collision_component in self.coltree:			self.coltree.remove(thing.collision_component)
-
-			if thing.renderable_component in self.draw_objects:		self.draw_objects.remove(thing.renderable_component)
-			if thing.renderable_component in self.draw_priority:	self.draw_priority.remove(thing.renderable_component)
-			if thing.renderable_component in self.draw_tree:		self.draw_tree.remove(thing.renderable_component)
-			
-			if thing in self.listeners:								self.listeners.remove(thing)
+			if thing.physics_component in self.physics_objects:
+				self.physics_objects.remove(thing.physics_component)
+			if thing.collision_component in self.collision_objects:
+				self.collision_objects.remove(thing.collision_component)
+			if thing.collision_component in self.nonstatic_objects:
+				self.nonstatic_objects.remove(thing.collision_component)
+			if thing.collision_component in self.coltree:
+				self.coltree.remove(thing.collision_component)
+			if thing.renderable_component in self.draw_objects:
+				self.draw_objects.remove(thing.renderable_component)
+			if thing.renderable_component in self.draw_priority:
+				self.draw_priority.remove(thing.renderable_component)
+			if thing.renderable_component in self.draw_tree:
+				self.draw_tree.remove(thing.renderable_component)
+			if thing in self.listeners:
+				self.listeners.remove(thing)
 			del thing
 		
 		for thing in self.entities:
@@ -193,6 +176,8 @@ class GameplayScreen(object):
 
 		for thing in self.draw_objects:
 			if isinstance(thing, AbstractComponent):
+				# TODO: What is going on here? 
+				# Oh. It's updating the draw tree for all the things in the draw_objects list that need it.
 				self.draw_tree.remove(thing)
 				thing.update(timestep)
 				self.draw_tree.append(thing)

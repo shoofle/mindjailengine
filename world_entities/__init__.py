@@ -1,1 +1,1 @@
-__all__ = ["world_objects"]
+from world_objects import *

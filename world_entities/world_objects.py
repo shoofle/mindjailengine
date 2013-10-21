@@ -1,15 +1,14 @@
+import math
+import random
+
 import pyglet
 from pyglet import gl as opengl
 from pyglet import text
 from pyglet.window import key
 
-from ..components import *
-
-from . import shapes
-
-import math
-import random
-from ..vectors import v
+from vectors import v
+from components import *
+import shapes
 
 #############################################
 ### The objects which populate the level! ###
@@ -24,14 +23,14 @@ class Entity(object):
 class FreeBall(Entity):
 	""" A circular object that can move and bounce freely. It's a circle! Woo."""
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		attach_basic(self, screen=pscreen)
-		attach_position(self, position=location)
+		self.basic_component = BasicComponent(owner=self, screen=pscreen)
+		self.position_component = PositionComponent(owner=self, position=location)
 
-		attach_shape(self, shapes.Circle(rad=rad, drawtype="3d"))
-		attach_physics(self, immobile=false)
-		attach_rendering(self)
+		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="3d")
+		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=False)
+		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
 
-		attach_collision(self)
+		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		
 class ObstacleBall(Entity):
 	""" A ball fixed in space. """
@@ -320,7 +319,7 @@ class CameraFollower(Entity):
 
 		screen = self.basic_component.parent_screen
 		
-		self.hud_label.text = self.template_text.format(screen.pwin.framerate, len(screen.coltree), len(screen.nonstatic_objects))
+		self.hud_label.text = self.template_text.format(screen.window.framerate, len(screen.coltree), len(screen.nonstatic_objects))
 
 	def draw(self):
 		opengl.glMatrixMode(opengl.GL_PROJECTION)
@@ -347,7 +346,7 @@ class CameraFollower(Entity):
 		opengl.glTranslatef( -camera_position.x, -camera_position.y, -z )
 
 		# Define the rect of what objects should be drawn.
-		camera_rect = self.basic_component.parent_screen.draw_tree.camera_rect
+		camera_rect = self.basic_component.parent_screen.camera_rect
 		camera_rect.x_min, camera_rect.x_max = camera_position.x - width/2.0, camera_position.x + width/2.0
 		camera_rect.y_min, camera_rect.y_max = camera_position.y - height/2.0, camera_position.y + height/2.0
 
