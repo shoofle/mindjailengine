@@ -29,7 +29,17 @@ class GameWindow(window.Window):
 		self.framerate_decay = 0.6
 		self.maximum_frame_length = 0.05
 
-		clock.schedule_interval(self.update, 1/60.0)
+		self.application_paused = True
+
+	def unpause(self):
+		if self.application_paused:
+			clock.schedule_interval(self.update, 1/60.0)
+			self.application_paused = False
+
+	def pause(self):
+		if not self.application_paused:
+			clock.unschedule(self.update)
+			self.application_paused = True
 
 	def on_draw(self):
 		self.clear()
