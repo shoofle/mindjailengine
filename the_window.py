@@ -4,7 +4,7 @@
 ############################## Wheeeeee! a game engine! and games!
 
 import pyglet
-from pyglet import window, clock, text
+from pyglet import window, clock
 
 from vectors import v
 

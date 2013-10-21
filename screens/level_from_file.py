@@ -77,7 +77,7 @@ class GameplayScreen(object):
 		self.draw_objects = []
 		self.draw_priority = []
 		self.draw_tree = collision_structures.SpatialGrid()
-		self.draw_tree.camera_rect = self.camera_rect #CollisionComponent(owner=None, pos=v(0,0), shape=shapes.Rectangle(-1,1,-1,1))
+		self.draw_tree.camera_rect = self.camera_rect
 		
 		self.listeners = []
 
@@ -93,7 +93,7 @@ class GameplayScreen(object):
 
 	def add_entity(self, thing):
 		""" Add an entity to the world. """
-		# TODO: Possibly iterate through thing.__dict__ and remove this dependency on the consistent attribute naming schemes
+		# TODO: Possibly iterate through thing.__dict__ (or something) and remove this dependency on the consistent attribute naming schemes
 		"""
 		for key, comp in thing.__dict__.items():
 			for name, system in systems:
@@ -123,8 +123,9 @@ class GameplayScreen(object):
 		finally: 
 			return thing
 
-	def killcountincrease(self): # increment the kill count!
-		self.killcount = self.killcount + 1
+	def killcountincrease(self): 
+		"""Increment the counter of player kills."""
+		self.killcount += 1
 
 	def draw(self):
 		""" Instructs each entity to draw itself, starting with the entities in the priority set. """
