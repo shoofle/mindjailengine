@@ -1,12 +1,6 @@
-#!/usr/bin/env python
-
 import pyglet
-from pyglet import window, text, graphics
-import pyglet.gl as opengl
+from pyglet import text, gl as opengl
 from pyglet.window import key
-
-import random
-import math
 
 import shapes
 from vectors import v
@@ -53,11 +47,11 @@ class GameplayScreen(object):
 	    "make a new entity, and put on the following pieces in this order".
 	That's a lot of words.
 	"""
-	def __init__(self, pwin, file_name):
-		""" Initialize the gamescreen. pwin is the parent window. """
-		self.pwin = pwin
-		self.width = pwin.width
-		self.height= pwin.height
+	def __init__(self, window, file_name):
+		""" Initialize the gamescreen. window is the parent window. """
+		self.window = window
+		self.width = window.width
+		self.height= window.height
 		self.draw_debug = False
 
 		self.killcount = 0
@@ -107,7 +101,11 @@ class GameplayScreen(object):
 		self.listeners = []
 
 		try:
-			level_data = __import__(file_name)
+			import importlib
+			level_data = importlib.import_module("levels." + file_name)
+			
+			print(dir(level_data))
+			
 			manifest = level_data.generate(self)
 			for item in manifest:
 				self.add_entity(item)
@@ -224,7 +222,7 @@ class GameplayScreen(object):
 
 	def on_key_press(self, symbol, modifiers):
 		if symbol == key.P: 
-			self.pwin.thescreen = PauseScreen(self.pwin, self)
+			self.window.thescreen = PauseScreen(self.window, self)
 		if symbol == key.R: 
 			print(self.coltree.status_report())
 			print(self.draw_tree.status_report())
@@ -243,8 +241,8 @@ class GameplayScreen(object):
 
 class PauseScreen(object): 
 	""" A game screen thingy for when the game is paused. """
-	def __init__(self, pwin, childscreen):
-		self.pwin = pwin
+	def __init__(self, window, childscreen):
+		self.window = window
 		self.childscreen = childscreen # The screen which paused us. pressing P will return us to this screen.
 
 		self.prepared_to_exit = False
@@ -262,17 +260,17 @@ d to activate debug drawing!"
 		self.top_text_label = text.Label(
 				self.top_text.format(self.childscreen.killcount), \
 				'Arial', 24, color = (0, 0, 0, 200),\
-				x = self.pwin.width/2, y = self.pwin.height/2 ,\
+				x = self.window.width/2, y = self.window.height/2 ,\
 				anchor_x="center", anchor_y="center", \
-				width=3*self.pwin.width/4, height=3*self.pwin.height/4, \
+				width=3*self.window.width/4, height=3*self.window.height/4, \
 				multiline=1 \
 			)
 		self.bottom_text_label = text.Label( \
 				self.bottom_text, \
 				'Arial', 24, color = (0, 0, 0, 200), \
-				x = self.pwin.width/2, y = self.pwin.height/4, \
+				x = self.window.width/2, y = self.window.height/4, \
 				anchor_x="center", anchor_y="center", \
-				width=3*self.pwin.width/4, height=3*self.pwin.height/4, \
+				width=3*self.window.width/4, height=3*self.window.height/4, \
 				multiline=1 \
 			)
 	def update(self, timestep): self.pausetime += timestep
@@ -288,7 +286,7 @@ d to activate debug drawing!"
 	def on_key_release(self, symbol, modifiers):
 		if symbol == key.P: 
 			if self.prepared_to_exit:
-				self.pwin.thescreen = self.childscreen
+				self.window.thescreen = self.childscreen
 				del self
 	def on_mouse_press(self, x, y, button, modifiers):pass
 	def on_mouse_drag(self, x, y, dx, dy, button, modifiers):pass

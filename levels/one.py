@@ -1,6 +1,6 @@
-from vectors import v
 import random
-import components
+from vectors import v
+from components import *
 from world_objects import *
 
 def generate(self):
