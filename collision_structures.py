@@ -2,7 +2,6 @@ from vectors import v
 import pyglet
 import math
 import random
-import bisect
 import shapes
 
 """I seem to have written a startling number of data structures for collision detection. Currently using SpatialGrid, which is a spatial hashing implementation."""
