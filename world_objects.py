@@ -319,7 +319,7 @@ class CameraFollower(Entity):
 
 		screen = self.basic_component.parent_screen
 		
-		self.hud_label.text = self.template_text.format(screen.pwin.framerate, len(screen.coltree), len(screen.nonstatic_objects))
+		self.hud_label.text = self.template_text.format(screen.window.framerate, len(screen.coltree), len(screen.nonstatic_objects))
 
 	def draw(self):
 		opengl.glMatrixMode(opengl.GL_PROJECTION)

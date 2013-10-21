@@ -14,11 +14,11 @@ import collision_structures
 
 """  """
 class TheScreen(object):
-	def __init__(self, pwin):
-		""" Initialize the gamescreen. pwin is the parent window. """
-		self.pwin = pwin
-		self.width = pwin.width
-		self.height= pwin.height
+	def __init__(self, window):
+		""" Initialize the gamescreen. window is the parent window. """
+		self.window = window
+		self.width = window.width
+		self.height= window.height
 		self.draw_debug = False
 
 		self.killcount = 0
@@ -68,8 +68,8 @@ class TheScreen(object):
 
 
 		label = text.Label( 'THIS IS A TEST', 'Arial', 24, color = (0, 0, 0, 200), 
-				x = self.pwin.width/2, y = self.pwin.height/4, anchor_x="center", anchor_y="center", 
-				width=3*self.pwin.width/4, height=3*self.pwin.height/4, multiline=1)
+				x = self.window.width/2, y = self.window.height/4, anchor_x="center", anchor_y="center", 
+				width=3*self.window.width/4, height=3*self.window.height/4, multiline=1)
 		self.draw_objects.append(label)
 		self.draw_priority.append(label)
 		
@@ -181,7 +181,7 @@ class TheScreen(object):
 
 	def on_key_press(self, symbol, modifiers):
 		if symbol == key.P: 
-			self.pwin.thescreen = PauseScreen(self.pwin, self)
+			self.window.thescreen = PauseScreen(self.window, self)
 		if symbol == key.R: 
 			print(self.coltree.status_report())
 			print(self.draw_tree.status_report())
@@ -200,8 +200,8 @@ class TheScreen(object):
 
 class PauseScreen(object): 
 	""" A game screen thingy for when the game is paused. """
-	def __init__(self, pwin, childscreen):
-		self.pwin = pwin
+	def __init__(self, window, childscreen):
+		self.window = window
 		self.childscreen = childscreen # The screen which paused us. pressing P will return us to this screen.
 
 		self.prepared_to_exit = False
@@ -213,17 +213,17 @@ class PauseScreen(object):
 		self.top_text_label = text.Label(
 				self.top_text.format(self.childscreen.killcount), \
 				'Arial', 24, color = (0, 0, 0, 200),\
-				x = self.pwin.width/2, y = self.pwin.height/2 ,\
+				x = self.window.width/2, y = self.window.height/2 ,\
 				anchor_x="center", anchor_y="center", \
-				width=3*self.pwin.width/4, height=3*self.pwin.height/4, \
+				width=3*self.window.width/4, height=3*self.window.height/4, \
 				multiline=1 \
 			)
 		self.bottom_text_label = text.Label( \
 				self.bottom_text, \
 				'Arial', 24, color = (0, 0, 0, 200), \
-				x = self.pwin.width/2, y = self.pwin.height/4, \
+				x = self.window.width/2, y = self.window.height/4, \
 				anchor_x="center", anchor_y="center", \
-				width=3*self.pwin.width/4, height=3*self.pwin.height/4, \
+				width=3*self.window.width/4, height=3*self.window.height/4, \
 				multiline=1 \
 			)
 	def update(self, timestep): self.pausetime += timestep
@@ -239,7 +239,7 @@ class PauseScreen(object):
 	def on_key_release(self, symbol, modifiers):
 		if symbol == key.P: 
 			if self.prepared_to_exit:
-				self.pwin.thescreen = self.childscreen
+				self.window.thescreen = self.childscreen
 				del self
 	def on_mouse_press(self, x, y, button, modifiers):pass
 	def on_mouse_drag(self, x, y, dx, dy, button, modifiers):pass

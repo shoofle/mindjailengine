@@ -35,8 +35,8 @@ def generate(self):
 	manifest.extend(wave_2)
 
 	dummy = {'renderable_component': text.Label( 'THIS IS A TEST', 'Arial', 24, color = (0, 0, 0, 200), 
-			x = self.pwin.width/2, y = self.pwin.height/4, anchor_x="center", anchor_y="center", 
-			width=3*self.pwin.width/4, height=3*self.pwin.height/4, multiline=1)}
+			x = self.window.width/2, y = self.window.height/4, anchor_x="center", anchor_y="center", 
+			width=3*self.window.width/4, height=3*self.window.height/4, multiline=1)}
 	manifest.append( dummy )
 
 	return manifest
