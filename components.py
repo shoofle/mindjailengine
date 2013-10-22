@@ -51,10 +51,10 @@ class CollisionComponent(AbstractComponent):
 		self.physics_component = physics_component
 
 		if immobile is None:
-			if hasattr(self.owner, 'physics_component'):
-				immobile = self.owner.physics_component.immobile
-			else: 
+			if self.physics_component is None:
 				immobile = True
+			else: 
+				immobile = self.physics_component.immobile
 		self.immobile = immobile
 		
 		self.update()

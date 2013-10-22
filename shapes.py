@@ -18,8 +18,7 @@ SHAPE_POINT = 4
 This file defines the behavior of various shape objects, which, as the name implies, describe the shapes of objects within the world.
 This is heavily relied on for collision detection - the intersect(me, you) function, which takes two objects with "shape" attributes,
   is used for all collision detection.
-The only collision that is particularly robust is circle/circle collisions. The circle/circle code can handle inverted circles, and also
-  extrapolates based on velocities.
+The only collision that is particularly robust is circle/circle collisions. The circle/circle code can handle inverted circles, and also extrapolates based on velocities.
 In the future, this module is going to be used for nothing but collision detection. Graphics should be offloaded to files, except maybe for debug purposes.
 """
 
@@ -97,7 +96,8 @@ def reverse_test(function):
 		if output is not None:
 			return -output
 		return None
-	new_func.__doc__ = function.__doc__
+	new_func.func_doc = function.func_doc
+	new_func.func_name = "reverse_" + function.func_name
 	return new_func
 
 def steal_docstring(to_function, from_function):
@@ -111,26 +111,24 @@ def steal_docstring(to_function, from_function):
 def circlecircle(me,you):
 	"""If I am intersecting you, find the shortest vector by which to change my position to no longer be intersecting.
 	
-	This function takes two objects with shape attributes. It checks to see if they are colliding, extrapolating their positions
-	  based on current velocities and a default timestep, and returns the shortest vector by which to move the object `me`, to 
-	  remedy the collision.
+	This function takes two objects with shape attributes. It checks to see if they are colliding and returns the shortest vector by which to move the object `me`, to remedy the collision.
 	If the objects do not collide, it returns None.
 	"""
 	separation = you.position_component.position - me.position_component.position # The vector from me to you.
 	if separation.x == 0 and separation.y == 0:
-		unit_separation = v(0,-1)
-		separation_magnitude = 0
+		separation_direction = v(0,-1)
+		separation_distance = 0
 	else:
-		separation_magnitude = abs(separation)
-		unit_separation = separation.unit()
+		separation_direction = separation.unit()
+		separation_distance = abs(separation)
 
 	my_extents = (-me.radius, me.radius)
 	your_extents = (-you.radius, you.radius)
 	
-	output = compare_interval( my_extents, your_extents, separation_magnitude)
+	output = compare_interval( my_extents, your_extents, separation_distance)
 
 	if output is None : return None
-	return output*unit_separation 
+	return output*separation_direction
 
 def lineline(me, you): # TODO: write this test.
 	return None
@@ -376,29 +374,42 @@ class Line(Shape):
 
 		# Build the vertex list.
 		if thickness == 0:
-			if draw_type is None: self.drawtype = "oneline"
+			self.drawtype = draw_type or "oneline"
 
-			self.vlist = pyglet.graphics.vertex_list(2,'v3f')
-			self.vlist.vertices = [0, 0, 0, vector.x, vector.y, 0]
+			self.vertex_list = pyglet.graphics.vertex_list(2, 'v3f')
+			self.vertex_list.vertices = [0, 0, 0, vector.x, vector.y, 0]
 		else:
-			if draw_type is None: self.drawtype = "lines"
+			self.drawtype = draw_type or "lines"
 
-			self.vlist = pyglet.graphics.vertex_list(22,'v3f')
-			self.vlist.vertices[0:d*1] = [thickness, 0.0, 0.0]
-			self.vlist.vertices[d*1:d*2] = [thickness, self.length, 0.0]
-			for i in range(9):
-				self.vlist.vertices[d*2+d*i:d*3+d*i] = [thickness*math.cos(math.pi*(i+1)/num_points), \
-														self.length + thickness*math.sin(math.pi*(i+1)/num_points), \
-														0.0]
-			self.vlist.vertices[d*(9+2):d*(9+3)] = [-thickness,self.length, 0.0]
-			self.vlist.vertices[d*(9+3):d*(9+4)] = [-thickness,0.0, 0.0]
-			for i in range(9):
-				self.vlist.vertices[d*(9+4)+d*i:d*(9+4)+d*(i+1)] = [-thickness*math.cos(math.pi*(i+1)/num_points), \
-																	-thickness*math.sin(math.pi*(i+1)/num_points), \
-																	0.0]
+			self.vertex_list = pyglet.graphics.vertex_list(4+2*num_points,'v3f')
+
+			# For the record, here's the logic of this vertex-generation code:
+			# We start at `thickness` distance out on the x-axis. Then, we travel up on the y-axis a distance of self.length. This is the first sidewall of the capsule shape.
+			self.vertex_list.vertices[0:d*1] = [thickness, 0.0, 0.0]
+			self.vertex_list.vertices[d*1:d*2] = [thickness, self.length, 0.0]
+
+			# Next, we draw the far end cap.
+			# This starts at the specified thickness away from the end anchor of the line, pointing in the direction of the positive x-axis. It proceeds counterclockwise around until it arrives at the location on the other side of the x-axis.
+			for i in range(num_points):
+				self.vertex_list.vertices[d*2+d*i:d*3+d*i] = [
+					thickness*math.cos(math.pi*(i+1)/num_points),
+					self.length + thickness*math.sin(math.pi*(i+1)/num_points),
+					0.0]
+
+			# A vertical connection is next, vertically back down to the negative x-axis.
+			self.vertex_list.vertices[d*(num_points+2):d*(num_points+3)] = [-thickness, self.length, 0.0]
+			self.vertex_list.vertices[d*(num_points+3):d*(num_points+4)] = [-thickness, 0.0, 0.0]
+
+			# And again we proceed in a half-circle, this time around the origin, to draw the near end cap.
+			for i in range(num_points):
+				self.vertex_list.vertices[d*(num_points+4+i):d*(num_points+4+i+1)] = [
+					-thickness*math.cos(math.pi*(i+1)/num_points),
+					-thickness*math.sin(math.pi*(i+1)/num_points),
+					0.0]
+
 			self.drawtype = "3d"
 
-		self.vertex_lists_3d = make_3d(self.vlist, depth)
+		self.vertex_lists_3d = make_3d(self.vertex_list, depth)
 
 		# Define the bounds.
 		self.xbounds = ( min(0,vector.x)-thickness, max(0,vector.x)+thickness )
@@ -412,64 +423,64 @@ class Line(Shape):
 
 		if self.drawtype is "outlined":
 			pyglet.gl.glColor3f(1.0,1.0,1.0)
-			self.vlist.draw(pyglet.gl.GL_POLYGON)
+			self.vertex_list.draw(pyglet.gl.GL_POLYGON)
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
-			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+			self.vertex_list.draw(pyglet.gl.GL_LINE_LOOP)
 		elif self.drawtype is "3d":
 			for l in self.vertex_lists_3d: l[0].draw(l[1])
 		elif self.drawtype == "points" :
-			self.vlist.draw(pyglet.gl.GL_POINTS)
+			self.vertex_list.draw(pyglet.gl.GL_POINTS)
 		elif self.drawtype == "lines" :
-			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+			self.vertex_list.draw(pyglet.gl.GL_LINE_LOOP)
 		elif self.drawtype == "oneline" :
-			self.vlist.draw(pyglet.gl.GL_LINE_STRIP)
+			self.vertex_list.draw(pyglet.gl.GL_LINE_STRIP)
 		elif self.drawtype == "fill" :
-			self.vlist.draw(pyglet.gl.GL_POLYGON)
+			self.vertex_list.draw(pyglet.gl.GL_POLYGON)
 		else: 
-			self.vlist.draw(self.drawtype)
+			self.vertex_list.draw(self.drawtype)
 
 		pyglet.gl.glPopMatrix()
 
 class Circle(Shape):
 	""" A simple circle. """
-	def __init__(self, numpoints = 30, rad = 30, drawtype = "lines", invert = False, depth=20, *args, **kwargs):
+	def __init__(self, num_points = 30, rad = 30, drawtype = "lines", invert = False, depth=20, *args, **kwargs):
 		super(Circle, self).__init__(*args, **kwargs)
 		
 		self.name = SHAPE_CIRCLE
-		self.vlist = pyglet.graphics.vertex_list(numpoints,'v3f')
+		self.vertex_list = pyglet.graphics.vertex_list(numpoints,'v3f')
 		self.radius=rad
 		self.drawtype = drawtype
 		self.invert = invert
 
 		# Build the vertex list.
-		for i in range(numpoints):
-			self.vlist.vertices[d*i:d*(i+1)] = [math.cos(i*2*math.pi/numpoints), math.sin(i*2*math.pi/numpoints), 0]
-		self.vertex_lists_3d = make_3d(self.vlist, depth)
+		for i in range(num_points):
+			self.vertex_list.vertices[d*i:d*(i+1)] = [math.cos(i*2*math.pi/num_points), math.sin(i*2*math.pi/num_points), 0]
+		self.vertex_lists_3d = make_3d(self.vertex_list, depth)
 
 		# Define the bounds.
 		self.xbounds = (-rad, rad)
 		self.ybounds = (-rad, rad)
 	def draw(self, location=None, z=0):
-		""" Draws the polygon at the polygon's self.x, self.y locations, scaled by self.r, rotated self.rot. """
+		""" Draws the polygon at the provided location, scaled by self.r, rotated self.rot. """
 		pyglet.gl.glPushMatrix()
 		pyglet.gl.glTranslatef(location.x, location.y, z)
 		pyglet.gl.glScalef(self.radius, self.radius, 1.0)
 		if self.drawtype is "outlined":
 			pyglet.gl.glColor3f(1.0,1.0,1.0)
-			self.vlist.draw(pyglet.gl.GL_POLYGON)
+			self.vertex_list.draw(pyglet.gl.GL_POLYGON)
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
-			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+			self.vertex_list.draw(pyglet.gl.GL_LINE_LOOP)
 		elif self.drawtype is "3d":
 			for l in self.vertex_lists_3d: l[0].draw(l[1])
 		elif self.drawtype == "points" :
-			self.vlist.draw(pyglet.gl.GL_POINTS)
+			self.vertex_list.draw(pyglet.gl.GL_POINTS)
 		elif self.drawtype == "lines" :
-			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+			self.vertex_list.draw(pyglet.gl.GL_LINE_LOOP)
 		elif self.drawtype == "oneline" :
-			self.vlist.draw(pyglet.gl.GL_LINE_STRIP)
+			self.vertex_list.draw(pyglet.gl.GL_LINE_STRIP)
 		elif self.drawtype == "fill" :
-			self.vlist.draw(pyglet.gl.GL_POLYGON)
-		else: self.vlist.draw(self.drawtype)
+			self.vertex_list.draw(pyglet.gl.GL_POLYGON)
+		else: self.vertex_list.draw(self.drawtype)
 		pyglet.gl.glPopMatrix()
 
 class Rectangle(Shape):
@@ -479,10 +490,10 @@ class Rectangle(Shape):
 
 		self.name = SHAPE_RECTANGLE
 		self.drawtype = drawtype
-		self.vlist = pyglet.graphics.vertex_list(4, 'v3f')
+		self.vertex_list = pyglet.graphics.vertex_list(4, 'v3f')
 
-		self.vlist.vertices = [x_min, y_min, 0, x_max, y_min, 0, x_max, y_max, 0, x_min, y_max, 0]
-		vertex_lists_3d = make_3d(self.vlist, depth)
+		self.vertex_list.vertices = [x_min, y_min, 0, x_max, y_min, 0, x_max, y_max, 0, x_min, y_max, 0]
+		self.vertex_lists_3d = make_3d(self.vertex_list, depth)
 		
 		self.xbounds = (x_min, x_max)
 		self.ybounds = (y_min, y_max)
@@ -491,45 +502,45 @@ class Rectangle(Shape):
 		pyglet.gl.glTranslatef(location.x, location.y, z)
 		if self.drawtype is "outlined":
 			pyglet.gl.glColor3f(1.0,1.0,1.0)
-			self.vlist.draw(pyglet.gl.GL_POLYGON)
+			self.vertex_list.draw(pyglet.gl.GL_POLYGON)
 			pyglet.gl.glColor3f(0.0,0.0,0.0)
-			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+			self.vertex_list.draw(pyglet.gl.GL_LINE_LOOP)
 		elif self.drawtype is "3d":
-			for l in self.vertex_lists_3d: l[0].draw(l[1])
+			for face in self.vertex_lists_3d: face[0].draw(face[1])
 		elif self.drawtype == "points" :
-			self.vlist.draw(pyglet.gl.GL_POINTS)
+			self.vertex_list.draw(pyglet.gl.GL_POINTS)
 		elif self.drawtype == "lines" :
-			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
+			self.vertex_list.draw(pyglet.gl.GL_LINE_LOOP)
 		elif self.drawtype == "oneline" :
-			self.vlist.draw(pyglet.gl.GL_LINE_STRIP)
+			self.vertex_list.draw(pyglet.gl.GL_LINE_STRIP)
 		elif self.drawtype == "fill" :
-			self.vlist.draw(pyglet.gl.GL_POLYGON)
-		else: self.vlist.draw(self.drawtype)
+			self.vertex_list.draw(pyglet.gl.GL_POLYGON)
+		else: self.vertex_list.draw(self.drawtype)
 		pyglet.gl.glPopMatrix()
 
 
-def make_3d(vlist, depth, edge_color=(0.1,0.1,0.1), cap_color=(0.8,0.8,0.8)):
-	num_vertices = len(vlist.vertices)/3
-	vlist_3d = pyglet.graphics.vertex_list(2*num_vertices + 2, 'v3f', 'c3f')
+def make_3d(vertex_list, depth, edge_color=(0.1,0.1,0.1), cap_color=(0.8,0.8,0.8)):
+	num_vertices = len(vertex_list.vertices)/3
+	vertex_list_3d = pyglet.graphics.vertex_list(2*num_vertices + 2, 'v3f', 'c3f')
 	for i in range(num_vertices):
 		start = i*2*3
-		verts1, verts2 = vlist.vertices[i*3:(i+1)*3], vlist.vertices[i*3:(i+1)*3]
+		verts1, verts2 = vertex_list.vertices[i*3:(i+1)*3], vertex_list.vertices[i*3:(i+1)*3]
 		verts1[2] -= depth/2.0
 		verts2[2] += depth/2.0
-		vlist_3d.vertices[start:start+3], vlist_3d.vertices[start+3:start+6] = verts1, verts2
-	end = (len(vlist.vertices)-3)*2
-	vlist_3d.vertices[end:end+3] = vlist.vertices[0:3]
-	vlist_3d.vertices[end+3:end+6] = vlist.vertices[0:3]
-	vlist_3d.vertices[end+2] -= depth/2.0
-	vlist_3d.vertices[end+2+3] += depth/2.0
-	vlist_3d.colors = edge_color*(2*num_vertices+2)
+		vertex_list_3d.vertices[start:start+3], vertex_list_3d.vertices[start+3:start+6] = verts1, verts2
+	end = (len(vertex_list.vertices)-3)*2
+	vertex_list_3d.vertices[end:end+3] = vertex_list.vertices[0:3]
+	vertex_list_3d.vertices[end+3:end+6] = vertex_list.vertices[0:3]
+	vertex_list_3d.vertices[end+2] -= depth/2.0
+	vertex_list_3d.vertices[end+2+3] += depth/2.0
+	vertex_list_3d.colors = edge_color*(2*num_vertices+2)
 
 	back_cap = pyglet.graphics.vertex_list(num_vertices, 'v3f', 'c3f')
-	back_cap.vertices, back_cap.colors = vlist.vertices, cap_color*num_vertices
+	back_cap.vertices, back_cap.colors = vertex_list.vertices, cap_color*num_vertices
 	front_cap = pyglet.graphics.vertex_list(num_vertices, 'v3f', 'c3f')
-	front_cap.vertices, front_cap.colors = vlist.vertices, cap_color*num_vertices
+	front_cap.vertices, front_cap.colors = vertex_list.vertices, cap_color*num_vertices
 	for i in range(num_vertices):
 		back_cap.vertices[3*i+2] -= depth/2
 		front_cap.vertices[3*i+2] += depth/2
 
-	return (vlist_3d, pyglet.gl.GL_TRIANGLE_STRIP), (back_cap, pyglet.gl.GL_POLYGON), (front_cap, pyglet.gl.GL_POLYGON)
+	return (vertex_list_3d, pyglet.gl.GL_TRIANGLE_STRIP), (back_cap, pyglet.gl.GL_POLYGON), (front_cap, pyglet.gl.GL_POLYGON)

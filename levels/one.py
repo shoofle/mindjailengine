@@ -6,9 +6,9 @@ from world_entities import *
 def generate(self):
 	manifest = []
 
-	playerobj = PlayerBall(self, location = v(0,0))
-	manifest.append( playerobj )
-	manifest.append( CameraFollower(self, latch=playerobj, spring=50, damping=10) )
+	player = PlayerBall(self, location = v(0,0))
+	manifest.append( player )
+	manifest.append( CameraFollower(self, latch=player, spring=50, damping=10) )
 
 	manifest.append( FreeBall(self, location = v(0,-50)) )
 	manifest.append( FreeBall(self, location = v(-100,0)) )

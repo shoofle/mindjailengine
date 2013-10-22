@@ -1,7 +1,11 @@
 from vectors import v
+
 import pyglet
-import math
+from pyglet import gl as opengl
+
+from math import floor
 import random
+
 import shapes
 
 """I seem to have written a startling number of data structures for collision detection. Currently using SpatialGrid, which is a spatial hashing implementation."""
@@ -54,14 +58,15 @@ class SpatialGrid(object):
 	
 	def grid_square(self, item): 
 		""" Return the grid square occupied by item. """
-		return int(math.floor( item.x_pos /self.grid_size)), int(math.floor( item.y_pos /self.grid_size)) # int() rounds toward zero.
+		return int(floor( item.x_pos /self.grid_size)), int(floor( item.y_pos /self.grid_size)) # int() rounds toward zero.
 	
 	def grid_space(self, item):
 		""" Returns a generator for the grid squares the object might be contacting, including neighbors. """
-		min_x = int(math.floor( item.x_min / self.grid_size)) 
-		max_x = int(math.floor( item.x_max / self.grid_size))
-		min_y = int(math.floor( item.y_min / self.grid_size))
-		max_y = int(math.floor( item.y_max / self.grid_size))
+		grid_size = self.grid_size
+		min_x = int(floor(item.x_min / grid_size))
+		max_x = int(floor(item.x_max / grid_size))
+		min_y = int(floor(item.y_min / grid_size))
+		max_y = int(floor(item.y_max / grid_size))
 		
 		return ((i,j) for i in range(min_x-1, max_x+2) for j in range(min_y-1, max_y+2) if (i,j) in self.grid)
 
@@ -89,7 +94,7 @@ class SpatialGrid(object):
 			self.append(i)
 	
 	def remove(self, item):
-		if self.too_big(item) and self.secondary is not None and item in self.secondary:
+		if self.secondary is not None and self.too_big(item) and item in self.secondary:
 			self.secondary.remove(item)
 		else:
 			location = self.grid_square(item)
@@ -98,14 +103,14 @@ class SpatialGrid(object):
 				if len(self.grid[location]) is 0: 
 					del self.grid[location]
 			else: 
-				for l in self.grid.keys():
-					if item in self.grid[l]: self.grid[l].remove(item)
-					if len(self.grid[l]) is 0: 
-						del self.grid[l]
+				for k in self.grid.keys():
+					if item in self.grid[k]: self.grid[k].remove(item)
+					if len(self.grid[k]) is 0: 
+						del self.grid[k]
 	
 	def __contains__(self, item):
-		if self.too_big(item) and self.secondary is not None and item in self.secondary: 
-			return True
+		if self.secondary is not None and self.too_big(item): 
+			return item in self.secondary
 		location = self.grid_square(item)
 		if location in self.grid and item in self.grid[location]: 
 			return True
@@ -151,10 +156,10 @@ Total Neighbors: {}\n\n".format(num_in_grid, num_off_grid, num_grid_squares, ave
 	
 	def draw(self):
 		for x,y in self.grid:
-			pyglet.gl.glPushMatrix()
-			pyglet.gl.glTranslatef(x*self.grid_size, y*self.grid_size, 0)
-			pyglet.gl.glColor3f(self.color[0], self.color[1], self.color[2])
+			opengl.glPushMatrix()
+			opengl.glTranslatef(x*self.grid_size, y*self.grid_size, 0)
+			opengl.glColor3f(self.color[0], self.color[1], self.color[2])
 			self.vlist.draw(pyglet.gl.GL_LINE_LOOP)
-			pyglet.gl.glPopMatrix()
+			opengl.glPopMatrix()
 		if self.secondary is not None: self.secondary.draw()
 

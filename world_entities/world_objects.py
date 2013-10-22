@@ -2,8 +2,7 @@ import math
 import random
 
 import pyglet
-from pyglet import gl as opengl
-from pyglet import text
+from pyglet import gl as opengl, text
 from pyglet.window import key
 
 from vectors import v
@@ -80,9 +79,10 @@ class Spawner(Entity):
 			angle = random.random()*2*math.pi
 			position = self.position_component.position + v(r*math.cos(angle), r*math.sin(angle))
 			newball = EnemyBall(self.basic_component.parent_screen, location=position, rad=30)
+			
 			vel = random.uniform(0.0, self.max_velocity)
 			angle = random.uniform(0.0, 2*math.pi)
-			newball.vel = v( vel*math.cos(angle), vel*math.sin(angle) )
+			newball.physics_component.vel = v( vel*math.cos(angle), vel*math.sin(angle) )
 
 			self.basic_component.parent_screen.add_entity(newball)
 
@@ -128,8 +128,7 @@ class PlayerBall(Entity):
 		self.thrustdir = v(0,0)
 
 		self.player = True
-
-#		self.shape2 = shapes.Circle(10, rad=self.rad/4, drawtype="fill", invert=0)
+		#self.shape2 = shapes.Circle(10, rad=self.rad/4, drawtype="fill", invert=0)
 
 	def fire_bullet(self):
 		newthing = BulletBall(self.basic_component.parent_screen, self, location=self.position_component.position)
@@ -281,13 +280,14 @@ class CameraFollower(Entity):
 	""" This object follows the latch and defines the drawing frustrum and basically sets up cameras. """
 	def __init__(self, pscreen, latch=None, spring=30, damping=2):
 		self.template_text = "FPS: {0:.2f}\n# of Objects: {1}\n# of Non-Static: {2}"
-		l_x, l_y = 3*pscreen.width/4.0, 1*pscreen.height/4.0
-		l_w, l_h =   pscreen.width/4.0,   pscreen.height/8.0
+		label_x, label_y = 3*pscreen.width/4.0, 1*pscreen.height/4.0
+		label_width, label_height = pscreen.width/4.0, pscreen.height/8.0
 		self.hud_label = text.Label(
 				self.template_text.format(0, 0, 0), 
 				font_name='Arial', font_size=12, color=(0,0,0,255), 
-				x=l_x, y=l_y, width=l_w, height=l_h, 
+				x=label_x, y=label_y, width=label_width, height=label_height, 
 				anchor_x="center", anchor_y="center", multiline = 1 )
+
 		self.hud_background = pyglet.graphics.vertex_list(4, 'v3f', 'c3f') 
 		self.hud_background.vertices = (l_x-l_w/2, l_y-l_h/2, -1, l_x+l_w/2, l_y-l_h/2, -1, l_x+l_w/2, l_y+l_h/2, -1, l_x-l_w/2, l_y+l_h/2, -1)
 		self.hud_background.colors = (1, 1, 1)*4
@@ -298,8 +298,6 @@ class CameraFollower(Entity):
 
 		self.scale = 0.5
 		self.decay = 0.4
-
-		self.time = 0
 
 		self.basic_component = BasicComponent(owner=self, screen=pscreen)
 		self.basic_component.update = self.update
@@ -322,6 +320,7 @@ class CameraFollower(Entity):
 		self.hud_label.text = self.template_text.format(screen.window.framerate, len(screen.coltree), len(screen.nonstatic_objects))
 
 	def draw(self):
+		parent_screen = self.basic_component.parent_screen # Need this a lot, so we should pull it into the local namespace.
 		opengl.glMatrixMode(opengl.GL_PROJECTION)
 		opengl.glLoadIdentity()
 		camera_position = self.position_component.position
@@ -335,28 +334,30 @@ class CameraFollower(Entity):
 
 		# Aspect ratio!
 		width = 1000.0
-		height = width * self.basic_component.parent_screen.height / self.basic_component.parent_screen.width
+		height = width * parent_screen.height / parent_screen.width
 
 		# Define clipping planes.
-		left_at_near_plane, right_at_near_plane = -(dist_to_near_plane/z)*width/2, (dist_to_near_plane/z)*width/2
-		bottom_at_near_plane, top_at_near_plane = -(dist_to_near_plane/z)*height/2, (dist_to_near_plane/z)*height/2
-		
+		left_at_near_plane = -(dist_to_near_plane/z)*width/2
+		right_at_near_plane = (dist_to_near_plane/z)*width/2
+		bottom_at_near_plane = -(dist_to_near_plane/z)*height/2
+		top_at_near_plane = (dist_to_near_plane/z)*height/2
+
 		# Set camera position.
 		opengl.glFrustum(left_at_near_plane, right_at_near_plane, bottom_at_near_plane, top_at_near_plane, dist_to_near_plane, dist_to_far_plane)
 		opengl.glTranslatef( -camera_position.x, -camera_position.y, -z )
 
 		# Define the rect of what objects should be drawn.
-		camera_rect = self.basic_component.parent_screen.camera_rect
+		camera_rect = parent_screen.camera_rect
 		camera_rect.x_min, camera_rect.x_max = camera_position.x - width/2.0, camera_position.x + width/2.0
 		camera_rect.y_min, camera_rect.y_max = camera_position.y - height/2.0, camera_position.y + height/2.0
 
 		# Draw the HUD.
 		opengl.glPushMatrix() # Push onto the stack, so that we can recover after.
 		opengl.glLoadIdentity() # Load a blank matrix.
-		opengl.glOrtho(0,self.basic_component.parent_screen.width, 0,self.basic_component.parent_screen.height, -1, 200) # Put us in orthogonal projection.
+		opengl.glOrtho(0, parent_screen.width, 0, parent_screen.height, -1, 200) # Put us in orthogonal projection.
 		
 		self.hud_background.draw(opengl.GL_QUADS)
-		self.hud_label.draw()
+		self.hud_label.draw() # Okay, this is REALLY GODDAMN WEIRD: Removing this line makes it so that the screen is just always blank.
 
 		opengl.glPopMatrix() # Recover the old projection matrix.
 		opengl.glMatrixMode(opengl.GL_MODELVIEW)

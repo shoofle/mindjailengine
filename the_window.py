@@ -1,4 +1,3 @@
-#!/bin/usr/python
 ############################## Sup, dawg.
 # This is a game engine or something, by Shoofle Munroe, this is being written at jul 24, 3:51 PM, 2013 (probably), contact me if you wanna use stuff or whatever at xsigma@gmail.com . Thanks!
 ############################## Wheeeeee! a game engine! and games!
@@ -78,23 +77,3 @@ class GameWindow(window.Window):
 		self.thescreen.on_mouse_drag(x, y, dx, dy, button, modifiers)
 	def on_mouse_motion(self, x, y, dx, dy): 
 		self.thescreen.on_mouse_motion(x, y, dx, dy)
-
-
-# This branch - executed if this file is run directly as a script - is no longer necessary. 
-# The behavior to start the application has been moved to the file `run_game.py`.
-# This is only being kept for legacy purposes, or maybe for debug. Maybe it's just to make me feel better!
-debug = False
-if __name__ == "__main__":
-	"""What to do if we're being launched directly!"""
-	wind = GameWindow()
-
-	import mod_screen as screen_module
-	wind.thescreen = screen_module.TheScreen(wind)
-
-	pyglet.app.run()
-
-#	if debug:
-#		import cProfile
-#		cProfile.run('wind.main_loop()')
-#	else:
-#
