@@ -1,4 +1,4 @@
-import random
+from random import uniform
 from vectors import v
 from components import *
 from world_entities import *
@@ -22,7 +22,10 @@ def generate(self):
 	manifest.append( EnemyBall(self, location = v(-260,0), rad=30) )
 	manifest.append( EnemyBall(self, location = v(-100,60), rad=30) )
 
-	balls = [ ObstacleBall(self, location=v(random.uniform(-1,1)*4000, random.uniform(-1,1)*1000), rad=40) for i in range(100) ]
+	height = 1000
+	width = 4000
+	quantity = 100
+	balls = [ ObstacleBall(self, location=v(uniform(-1,1)*width, uniform(-1,1)*height), rad=40) for i in range(quantity) ]
 	manifest.extend(balls)
 
 	wavelength = 600

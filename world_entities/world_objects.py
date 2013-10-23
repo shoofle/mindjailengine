@@ -289,7 +289,7 @@ class CameraFollower(Entity):
 				anchor_x="center", anchor_y="center", multiline = 1 )
 
 		self.hud_background = pyglet.graphics.vertex_list(4, 'v3f', 'c3f') 
-		self.hud_background.vertices = (l_x-l_w/2, l_y-l_h/2, -1, l_x+l_w/2, l_y-l_h/2, -1, l_x+l_w/2, l_y+l_h/2, -1, l_x-l_w/2, l_y+l_h/2, -1)
+		self.hud_background.vertices = (label_x-label_width/2, label_y-label_height/2, -1, label_x+label_width/2, label_y-label_height/2, -1, label_x+label_width/2, label_y+label_height/2, -1, label_x-label_width/2, label_y+label_height/2, -1)
 		self.hud_background.colors = (1, 1, 1)*4
 
 		self.target = latch

@@ -447,7 +447,7 @@ class Circle(Shape):
 		super(Circle, self).__init__(*args, **kwargs)
 		
 		self.name = SHAPE_CIRCLE
-		self.vertex_list = pyglet.graphics.vertex_list(numpoints,'v3f')
+		self.vertex_list = pyglet.graphics.vertex_list(num_points,'v3f')
 		self.radius=rad
 		self.drawtype = drawtype
 		self.invert = invert
