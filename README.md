@@ -1,3 +1,5 @@
+(note to self: kivy kivy kivy let's try kivy)
+
 mindjailengine
 ==============
 
