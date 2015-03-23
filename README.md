@@ -1,5 +1,3 @@
-(note to self: kivy kivy kivy let's try kivy)
-
 mindjailengine
 ==============
 
@@ -8,11 +6,11 @@ A relatively simple game engine in python. Thanks, I'm shoofle.
 
 Check out what it looks like in [this (extremely choppy, because of the screen recorder) video!](http://youtu.be/-OvUgrvlsug)
 
-This is a 2D, physics-y game engine in python. At present, it uses the [pyglet](http://www.pyglet.org/) library for windowing and opengl bindings, although this might change sometime soon in favor of something more frequently updated. For the moment, graphics are limited to vectory stuff, because it's all basically hand-crafted opengl loops. That's still in the works, but I like the vector look. Not sure where that's going to go.
+This is a 2D, physics-y game engine in python. At present, it uses the [pyglet](http://www.pyglet.org/) library for windowing and opengl bindings, although I'm interested in eventually moving to some kind of gui kit. It's very undecided. I like pyglet a lot. For the moment, graphics are limited to vectory stuff, because it's drawn through hand-crafted opengl loops. Still in the works. I do like the vector look. Not sure where that's going to go.
 
-In order to use this, you'll need python (2.6, I think? 2.7? Unfortunately, it's not up to python3 yet :( I hope to make that happen!) and pyglet; I installed pyglet using [pip](https://pypi.python.org/pypi/pip) (`pip install pyglet`). When you've got pyglet in place, just do `python mindjailengine.py` and it'll go. Not too much to it.
+In order to use this, you'll need python (python3 preferred!) and pyglet; feel free to use the `requirements.txt` file or to install by `pip install pyglet`. When pyglet's in place, just do `python mindjailengine.py` and it'll go. Not too much to it!
 
-Unfortunately, pyglet is ailing and unhappy and doesn't play nice with 64-bit machines, so you might need 32-bit python in order to run this. Replacing pyglet is on my list of things to do!
+Replacing pyglet was high on my list of priorities, and was a major roadblock to actually going further with this project, but fortunatey pyglet finally released 1.2 and now supports python3 and fixed its OSX support! So I can work on this again!
 
 --------
 
@@ -30,3 +28,5 @@ To be sure, 172 bytes for storing a pair of floating point numbers is pretty awf
 --------
 
 I'm working on this with the intent of making a game in it, for funsies and for learning experience. I started this in my second year of college, and I wasn't particularly experienced then - and while I'm by no means a guru, I've grown a lot. What I'm saying is that I'm really nervous about people looking at old code I've written. Look with care! I'm also always, *always* happy to hear advice. If you've got something to add or contribute, I'm interested!
+
+Incidentally, there are some *really* wacky things I've done in here - especially in the `components` library - and I ask you not to judge too harshly. I experiment a lot, but I try to keep the dependencies between different parts of this codebase as sensible as possible - so, yes, I did define something that does a raw `self.__dict__.update(kwargs)` in its constructor... but I do know that that's ridiculous and irresponsible :) I'm trying to use python to do a bunch of different things, including functioning as a game data specification language. That involves some introspection to get the nicest resulting syntax possible! idk. Anyway.

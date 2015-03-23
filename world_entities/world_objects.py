@@ -6,8 +6,9 @@ from pyglet import gl as opengl, text
 from pyglet.window import key
 
 from vectors import v
-from components import *
-import shapes
+from components.components import *
+from components.base_components import *
+from components import shapes
 
 #############################################
 ### The objects which populate the level! ###

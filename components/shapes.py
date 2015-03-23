@@ -5,7 +5,7 @@ from pyglet import gl, graphics
 
 import math
 from vectors import v
-from components import PositionComponent, AbstractComponent
+from .base_components import PositionComponent, AbstractComponent
 
 d = 3
 defaultTS = 0.04
@@ -93,11 +93,12 @@ def reverse_test(function):
 	passes the output through if it's None and inverts it otherwise."""
 	def new_func(shape_one, shape_two, *args, **kwargs):
 		output = function(shape_two, shape_one, *args, **kwargs)
-		if output is not None:
-			return -output
-		return None
-	new_func.func_doc = function.func_doc
-	new_func.func_name = "reverse_" + function.func_name
+		return -output if output else None
+		#if output is not None:
+		#	return -output
+		#return None
+	new_func.__doc__ = function.__doc__
+	new_func.__name__ = "reverse_" + function.__name__
 	return new_func
 
 def steal_docstring(to_function, from_function):
@@ -520,7 +521,7 @@ class Rectangle(Shape):
 
 
 def make_3d(vertex_list, depth, edge_color=(0.1,0.1,0.1), cap_color=(0.8,0.8,0.8)):
-	num_vertices = len(vertex_list.vertices)/3
+	num_vertices = int(len(vertex_list.vertices)/3)
 	vertex_list_3d = pyglet.graphics.vertex_list(2*num_vertices + 2, 'v3f', 'c3f')
 	for i in range(num_vertices):
 		start = i*2*3

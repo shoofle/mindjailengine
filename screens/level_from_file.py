@@ -2,7 +2,6 @@ import pyglet
 from pyglet import text, gl as opengl
 from pyglet.window import key
 
-import shapes
 from vectors import v
 import collision_structures
 

@@ -1,7 +1,7 @@
 from random import uniform
 from vectors import v
 from components import *
-from world_entities import *
+from world_entities.world_objects import *
 
 def generate(self):
 	manifest = []

@@ -1,1 +1,1 @@
-from world_objects import *
+#from world_objects import *

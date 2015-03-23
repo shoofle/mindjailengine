@@ -6,7 +6,7 @@ from pyglet import gl as opengl
 from math import floor
 import random
 
-import shapes
+from components import shapes
 
 """I seem to have written a startling number of data structures for collision detection. Currently using SpatialGrid, which is a spatial hashing implementation."""
 
@@ -75,7 +75,10 @@ class SpatialGrid(object):
 		if self.secondary is not None: output = self.secondary.collisions(item)
 		else: output = set()
 
-		return reduce(lambda acc, location: acc | self.grid[location].collisions(item), self.grid_space(item), output)
+		for location in self.grid_space(item):
+			output |= self.grid[location].collisions(item)
+
+		return output
 
 	def append(self, item):
 		""" Add item to the spatial grid. If it is too big, it will get bumped up to the secondary data structure. """
