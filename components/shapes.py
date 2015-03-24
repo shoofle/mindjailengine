@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import pyglet
 from pyglet import gl, graphics
 
@@ -49,42 +47,6 @@ def intersect(me, you):
 		if you.name == SHAPE_LINE: return pointline(me, you)
 		if you.name == SHAPE_RECTANGLE: return pointrect(me, you)
 		if you.name == SHAPE_POINT: return pointpoint(me, you)
-	"""
-	if me.name is SHAPE_CIRCLE and you.name is SHAPE_CIRCLE: return circlecircle(me, you)
-
-
-
-	if me.name is SHAPE_LINE and you.name is SHAPE_LINE: return None
-
-	if me.name is SHAPE_LINE and you.name is SHAPE_CIRCLE: return linecircle(me, you)
-	if me.name is SHAPE_CIRCLE and you.name is SHAPE_LINE: return circleline(me, you)
-
-
-
-
-	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_RECTANGLE: return rectrect(me, you)
-
-	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_CIRCLE: return rectcircle(me, you)
-	if me.name is SHAPE_CIRCLE and you.name is SHAPE_RECTANGLE: return circlerect(me, you)
-
-	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_LINE: return None
-	if me.name is SHAPE_LINE and you.name is SHAPE_RECTANGLE: return None
-
-
-
-
-
-	if me.name is SHAPE_POINT and you.name is SHAPE_POINT: return pointpoint(me, you)
-	
-	if me.name is SHAPE_POINT and you.name is SHAPE_CIRCLE: return pointcircle(me, you)
-	if me.name is SHAPE_CIRCLE and you.name is SHAPE_POINT: return circlepoint(me, you)
-
-	if me.name is SHAPE_POINT and you.name is SHAPE_LINE: return pointline(me, you)
-	if me.name is SHAPE_LINE and you.name is SHAPE_POINT: return linepoint(me, you)
-
-	if me.name is SHAPE_POINT and you.name is SHAPE_RECTANGLE: return pointrect(me, you)
-	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_POINT: return rectpoint(me, you)
-	"""
 
 def reverse_test(function):
 	""" Utility to create an reversed collision test function.
@@ -362,7 +324,7 @@ class Point(Shape):
 class Line(Shape):
 	""" A line, potentially with rounded ends. """
 	def __init__(self, vector=v(1,0), thickness=0, draw_type=None, num_points = 9, depth=20, *args, **kwargs):
-		super(Line, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		
 		self.name = SHAPE_LINE
 		self.v = vector
@@ -445,7 +407,7 @@ class Line(Shape):
 class Circle(Shape):
 	""" A simple circle. """
 	def __init__(self, num_points = 30, rad = 30, drawtype = "lines", invert = False, depth=20, *args, **kwargs):
-		super(Circle, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		
 		self.name = SHAPE_CIRCLE
 		self.vertex_list = pyglet.graphics.vertex_list(num_points,'v3f')
@@ -487,7 +449,7 @@ class Circle(Shape):
 class Rectangle(Shape):
 	""" A rectangle. """
 	def __init__(self, x_min, x_max, y_min, y_max, drawtype = "3d", depth=20, color=(1.0, 1.0, 1.0), *args, **kwargs):
-		super(Rectangle, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 
 		self.name = SHAPE_RECTANGLE
 		self.drawtype = drawtype

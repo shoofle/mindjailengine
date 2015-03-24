@@ -13,117 +13,125 @@ from components import shapes
 #############################################
 ### The objects which populate the level! ###
 #############################################
-class Entity(object):
-	pass
 
-#def MakeFreeBall(pscreen, location=v(0,0), rad=20, *args, **kwargs):
-#	output = Entity()
-#	addBasicComponent(output, 
-
-class FreeBall(Entity):
+def new_free_ball(pscreen, location=v(0,0), rad=20):
 	""" A circular object that can move and bounce freely. It's a circle! Woo."""
-	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.position_component = PositionComponent(owner=self, position=location)
+	x = dict()
+	x['basic'] = BasicComponent(owner=x, screen=pscreen)
+	x['position'] = PositionComponent(owner=x, position=location)
 
-		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="3d")
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=False)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
+	x['shape'] = shapes.Circle(owner=x, rad=rad, drawtype="3d")
+	x['physics_body'] = PhysicsComponent(owner=x, immobile=False)
+	x['rendering'] = RenderableComponent(owner=x)
 
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
-		
-class ObstacleBall(Entity):
+	x['collision'] = CollisionComponent(owner=x)
+	return x
+	
+def new_obstacle_ball(pscreen, location=v(0,0), rad=20):
 	""" A ball fixed in space. """
-	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.position_component = PositionComponent(owner=self, position=location)
-		
-		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="3d")
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=True)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
-		
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
-class ObstacleLine(Entity):
+	x = dict()
+	x['basic'] = BasicComponent(owner=x, screen=pscreen)
+	x['position'] = PositionComponent(owner=x, position=location)
+	
+	x['shape'] = shapes.Circle(owner=x, rad=rad, drawtype="3d")
+	x['physics_body'] = PhysicsComponent(owner=x, immobile=True)
+	x['rendering'] = RenderableComponent(owner=x)
+	
+	x['collision'] = CollisionComponent(owner=x)
+	return x
+
+def new_obstacle_line(pscreen, location=v(0,0), endpoint=v(0,1), thick = 0):
 	""" A line, potentially with rounded ends, fixed in space. """
-	def __init__(self, pscreen, location=v(0,0), endpoint=v(0,1), thick = 0,*args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.position_component = PositionComponent(owner=self, position=location)
-		
-		self.shape = shapes.Line(owner=self, vector=endpoint - location, thickness=thick)
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=True)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
-		
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
+	x = dict()
+	x['basic'] = BasicComponent(owner=x, screen=pscreen)
+	x['position'] = PositionComponent(owner=x, position=location)
+	
+	x['shape'] = shapes.Line(owner=x, vector=endpoint - location, thickness=thick)
+	x['physics_body'] = PhysicsComponent(owner=x, immobile=True)
+	x['rendering'] = RenderableComponent(owner=x)
+	
+	x['collision'] = CollisionComponent(owner=x)
+	return x
 
 ###################
 ### Opponents!? ###
 ###################
 
-class Spawner(Entity):
-	""" A circular area that spawns EnemyBalls until it reaches the max, with chance spawn_chance every frame. """
-	def __init__(self, pscreen, location=v(0,0), rad=100, z=0.25, *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.basic_component.update = self.update
-		self.position_component = PositionComponent(owner=self, position=location)
-		
-		self.shape = shapes.Circle(owner=self, rad=rad, invert=0, drawtype="fill")
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, z=z, color=(0.6, 0, 0.6, 0.4))
+class SpawnerBrain(AbstractComponent):
+	def __init__(self, spawn_count=0, spawn_count_max=20, spawn_chance=0.01, max_velocity=1000, *args, **kwargs):
+		super().__init__(*args, **kwargs)
 
-		self.spawn_count = 0
-		self.spawn_count_max = 20 # Maximum number that will spawn before the spawner dies.
-		self.spawn_chance = 0.01 # chance of spawning, per frame.
-		self.max_velocity = 1000
+		self.spawn_count = spawn_count
+		self.spawn_count_max = spawn_count_max
+		self.spawn_chance = spawn_chance
+		self.max_velocity = max_velocity
 	def update(self, timestep):
 		if self.spawn_count > self.spawn_count_max: return
+
+		owner = self.owner
 		if random.random() < self.spawn_chance:
-			r = random.random()*self.shape.radius
+			r = random.random()*owner['shape'].radius
 			angle = random.random()*2*math.pi
-			position = self.position_component.position + v(r*math.cos(angle), r*math.sin(angle))
-			newball = EnemyBall(self.basic_component.parent_screen, location=position, rad=30)
+			position = owner['position'].position + v(r*math.cos(angle), r*math.sin(angle))
+			newball = new_enemy_ball(owner['basic'].parent_screen, location=position, rad=30)
 			
 			vel = random.uniform(0.0, self.max_velocity)
 			angle = random.uniform(0.0, 2*math.pi)
-			newball.physics_component.vel = v( vel*math.cos(angle), vel*math.sin(angle) )
+			newball['physics_body'].vel = v( vel*math.cos(angle), vel*math.sin(angle) )
 
-			self.basic_component.parent_screen.add_entity(newball)
+			owner['basic'].parent_screen.add_entity(newball)
 
 			self.spawn_count = self.spawn_count + 1
 
-class EnemyBall(Entity):
-	""" An enemy ball, which can be destroyed by bullets. """
-	def __init__(self, pscreen, location=v(0,0), rad=30, *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.position_component = PositionComponent(owner=self, position=location)
-		
-		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="fill")
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.5,0.5,0.5))
-		
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
-		self.collision_component.collide = self.collide
-		
-		self.enemy = True
-	def collide(self,other):
-		if hasattr(other.owner,"bullet") and other.owner.bullet: self.basic_component.dead = True
+def new_spawner(pscreen, location=v(0,0), rad=100, z=0.25):
+	"""A spawner, it'll make enemy balls."""
+	x = dict()
+	x['basic'] = BasicComponent(owner=x, screen=pscreen)
+	x['spawner'] = SpawnerBrain(owner=x) # default args are good enough for me
+	x['basic'].update = x['spawner'].update
+	
+	x['position'] = PositionComponent(owner=x, position=location)
+	x['shape'] = shapes.Circle(owner=x, rad=rad, invert=0, drawtype="fill")
+	x['rendering'] = RenderableComponent(owner=x, z=z, color=(0.6, 0, 0.6, 0.4))
+	return x
+
+def new_enemy_ball(pscreen, location=v(0,0), rad=30):
+	"""An enemy ball, which can be destroyed by bullets. """
+	x = dict()
+	x['basic'] = BasicComponent(owner=x, screen=pscreen)
+	x['position'] = PositionComponent(owner=x, position=location)
+	
+	x['shape'] = shapes.Circle(owner=x, rad=rad, drawtype="fill")
+	x['physics_body'] = PhysicsComponent(owner=x, position_component=x.position_component)
+	x['rendering'] = RenderableComponent(owner=x, position_component=x.position_component, color=(0.5,0.5,0.5))
+	
+	collider = CollisionComponent(owner=x, position_component=x.position_component, physics_component=x.physics_component)
+	def collide(other):
+		if BulletBall.is_a_bullet(other): collider.owner['basic'].dead = True
+	collider.collide = collide
+	x['collision'] = collider
+	
+	x['enemy'] = True
 
 ################################
 ### Player-related stuff!    ###
 ### Player, Bullets, Camera. ###
 ################################
 
-class PlayerBall(Entity):
+class PlayerBall(dict):
 	""" The player. Oh my, but this is a big class. Oh well. It's an important object. """
-	def __init__(self,pscreen, location=v(0,0), *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.basic_component.update = self.update
-		self.position_component = PositionComponent(owner=self, position=location)
+	def __init__(x, pscreen, location=v(0,0)):
+		super().__init__(self)
+		self['basic'] = BasicComponent(owner=self, screen=pscreen)
+		self['basic'].update = self.time_step
+		self['position'] = PositionComponent(owner=self, position=location)
 		
-		self.shape = shapes.Circle(owner=self, rad=15)
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.0, 0.6, 0.0))
-		self.input_listeners = None #TODO: input listener component.
+		self['shape'] = shapes.Circle(owner=self, rad=15)
+		self['physics'] = PhysicsComponent(owner=self)
+		self['renderable'] = RenderableComponent(owner=self, color=(0.0, 0.6, 0.0))
+		self['input_listeners'] = None #TODO: input listener component.
 
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
+		self['collision'] = CollisionComponent(owner=self)
 		
 		self.thrust = 30000
 		self.thrustdir = v(0,0)
@@ -153,7 +161,7 @@ class PlayerBall(Entity):
 		self.basic_component.parent_screen.add_entity(newlaser)
 
 	def gotkill(self, other): self.basic_component.parent_screen.killcountincrease()
-	def update(self,timestep): self.physics_component.acc += self.thrust*timestep*self.thrustdir
+	def time_step(self,timestep): self.physics_component.acc += self.thrust*timestep*self.thrustdir
 	def on_key_press(self, symbol, modifiers):
 		if symbol == key.UP: self.thrustdir = self.thrustdir + v(0,2)
 		if symbol == key.DOWN: self.thrustdir = self.thrustdir + v(0,-1)
@@ -198,6 +206,11 @@ class BulletBall(Entity):
 		self.time += timestep
 		if self.time>self.time_to_live:
 			self.basic_component.dead = True
+	@classmethod
+	def is_a_bullet(querent):
+		if isinstance(querent, CollisionComponent):
+			querent = querent.owner
+		return 'bullet' in querent
 
 class LaserLine(Entity):
 	""" A laser beam! """

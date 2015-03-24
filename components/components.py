@@ -1,5 +1,6 @@
 from vectors import v
 from pyglet import gl as opengl
+
 from . import shapes
 from .base_components import *
 
@@ -7,23 +8,25 @@ class CollisionComponent(AbstractComponent):
 	def __init__(self, shape=None, position_component=None, physics_component=None, immobile=None, *args, **keyword_args):
 		super().__init__(*args, **keyword_args)
 		
+		comps = self.owner.components
+
 		if position_component is None:
-			if hasattr(self.owner, 'position_component'):
-				position_component = self.owner.position_component
+			if 'position' in comps:
+				position_component = comps['position']
 			else:
 				position_component = PositionComponent(owner=self.owner)
 		self.position_component = position_component
 
 		if shape is None:
-			if hasattr(self.owner, 'shape'):
-				shape = self.owner.shape
+			if 'shape' in comps:
+				shape = comps['shape']
 			else:
 				shape = shapes.Point()
 		self.shape = shape
 		
 		if physics_component is None:
-			if hasattr(self.owner, 'physics_component'):
-				physics_component = self.owner.physics_component
+			if 'physics_body' in comps:
+				physics_component = comps['physics_body']
 		self.physics_component = physics_component
 
 		if immobile is None:
