@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from the_window import GameWindow
 from screens import level_from_file
 import pyglet

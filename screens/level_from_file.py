@@ -4,9 +4,7 @@ from pyglet.window import key
 
 from vectors import v
 import collision_structures
-
-from components import *
-from world_entities import *
+import components
 
 class GameplayScreen(object):
 	"""All the main action of gameplay - whizzing around in a terrain, shooting things, etc.
@@ -42,7 +40,7 @@ class GameplayScreen(object):
 
 		self.killcount = 0
 		self.total_time = 0
-		self.camera_rect = CollisionComponent(owner=None, shape=shapes.Rectangle(-1,1,-1,1))
+		self.camera_rect = components.Collider(owner=None, shape=components.shapes.Rectangle(-1,1,-1,1))
 		self.constants = {'drag':10, 'gravity':v(0,-30000), 'elasticity':0.7, 'friction':0.9, 'displace':0.7}
 
 		opengl.glEnable(opengl.GL_BLEND)
@@ -100,7 +98,7 @@ class GameplayScreen(object):
 					system.append(comp)
 		"""
 		try:
-			if hasattr(thing, 'basic_component'):
+			if hasattr(thing, 'lifecycle'):
 				self.entities.append(thing)
 			if hasattr(thing, 'physics_component'):
 				self.physics_objects.append(thing.physics_component)
@@ -146,7 +144,7 @@ class GameplayScreen(object):
 		"""Update the state of each entity in the game world."""
 		self.total_time += timestep
 
-		dead_things = (t for t in self.entities if t.basic_component.dead)
+		dead_things = (t for t in self.entities if t.lifecycle.dead)
 
 		for thing in dead_things:
 			self.entities.remove(thing)
@@ -169,13 +167,13 @@ class GameplayScreen(object):
 			del thing
 		
 		for thing in self.entities:
-			thing.basic_component.update(timestep)
+			thing.lifecycle.update(timestep)
 
 		for thing in self.physics_objects:
 			thing.update(timestep)
 
 		for thing in self.draw_objects:
-			if isinstance(thing, AbstractComponent):
+			if isinstance(thing, components.AbstractComponent):
 				# TODO: What is going on here? 
 				# Oh. It's updating the draw tree for all the things in the draw_objects list that need it.
 				self.draw_tree.remove(thing)
@@ -194,15 +192,15 @@ class GameplayScreen(object):
 			for col in set_of_collisions:
 				if not obj.collides_with(col.owner): continue
 				if not col.collides_with(obj.owner): continue
-				vector = shapes.intersect(obj.shape, col.shape)
+				vector = components.shapes.intersect(obj.shape, col.shape)
 				if vector is not None:
 					obj.collide(col)
 					col.collide(obj)
 					po = obj.physics_component
 					co = col.physics_component
 					if po is not None and po.tangible and co is not None and co.tangible:
-						if not po.immobile: bounce(po, co, vector)
-						if not co.immobile: bounce(co, po, -vector)
+						if not po.immobile: components.bounce(po, co, vector)
+						if not co.immobile: components.bounce(co, po, -vector)
 		
 
 	def on_key_press(self, symbol, modifiers):

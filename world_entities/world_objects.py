@@ -1,14 +1,13 @@
-import math
-import random
-
 import pyglet
-from pyglet import gl as opengl, text
+from pyglet import text
+from pyglet import gl as opengl
 from pyglet.window import key
 
+import math
+import random
 from vectors import v
-from components.components import *
-from components.base_components import *
-from components import shapes
+
+from components import * 
 
 #############################################
 ### The objects which populate the level! ###
@@ -18,42 +17,42 @@ class Entity(object):
 
 #def MakeFreeBall(pscreen, location=v(0,0), rad=20, *args, **kwargs):
 #	output = Entity()
-#	addBasicComponent(output, 
+#	addLifecycle(output, 
 
 class FreeBall(Entity):
 	""" A circular object that can move and bounce freely. It's a circle! Woo."""
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
 		self.position_component = PositionComponent(owner=self, position=location)
 
 		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="3d")
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=False)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
+		self.physics_component = PhysicsBody(owner=self, position_component=self.position_component, immobile=False)
+		self.renderable_component = Renderable(owner=self, position_component=self.position_component)
 
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
+		self.collision_component = Collider(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		
 class ObstacleBall(Entity):
 	""" A ball fixed in space. """
 	def __init__(self, pscreen, location=v(0,0), rad=20, *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
 		self.position_component = PositionComponent(owner=self, position=location)
 		
 		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="3d")
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=True)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
+		self.physics_component = PhysicsBody(owner=self, position_component=self.position_component, immobile=True)
+		self.renderable_component = Renderable(owner=self, position_component=self.position_component)
 		
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
+		self.collision_component = Collider(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 class ObstacleLine(Entity):
 	""" A line, potentially with rounded ends, fixed in space. """
 	def __init__(self, pscreen, location=v(0,0), endpoint=v(0,1), thick = 0,*args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
 		self.position_component = PositionComponent(owner=self, position=location)
 		
 		self.shape = shapes.Line(owner=self, vector=endpoint - location, thickness=thick)
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, immobile=True)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component)
+		self.physics_component = PhysicsBody(owner=self, position_component=self.position_component, immobile=True)
+		self.renderable_component = Renderable(owner=self, position_component=self.position_component)
 		
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
+		self.collision_component = Collider(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 
 ###################
 ### Opponents!? ###
@@ -62,12 +61,12 @@ class ObstacleLine(Entity):
 class Spawner(Entity):
 	""" A circular area that spawns EnemyBalls until it reaches the max, with chance spawn_chance every frame. """
 	def __init__(self, pscreen, location=v(0,0), rad=100, z=0.25, *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.basic_component.update = self.update
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
+		self.lifecycle.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
 		
 		self.shape = shapes.Circle(owner=self, rad=rad, invert=0, drawtype="fill")
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, z=z, color=(0.6, 0, 0.6, 0.4))
+		self.renderable_component = Renderable(owner=self, position_component=self.position_component, z=z, color=(0.6, 0, 0.6, 0.4))
 
 		self.spawn_count = 0
 		self.spawn_count_max = 20 # Maximum number that will spawn before the spawner dies.
@@ -79,32 +78,32 @@ class Spawner(Entity):
 			r = random.random()*self.shape.radius
 			angle = random.random()*2*math.pi
 			position = self.position_component.position + v(r*math.cos(angle), r*math.sin(angle))
-			newball = EnemyBall(self.basic_component.parent_screen, location=position, rad=30)
+			newball = EnemyBall(self.lifecycle.parent_screen, location=position, rad=30)
 			
 			vel = random.uniform(0.0, self.max_velocity)
 			angle = random.uniform(0.0, 2*math.pi)
 			newball.physics_component.vel = v( vel*math.cos(angle), vel*math.sin(angle) )
 
-			self.basic_component.parent_screen.add_entity(newball)
+			self.lifecycle.parent_screen.add_entity(newball)
 
 			self.spawn_count = self.spawn_count + 1
 
 class EnemyBall(Entity):
 	""" An enemy ball, which can be destroyed by bullets. """
 	def __init__(self, pscreen, location=v(0,0), rad=30, *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
 		self.position_component = PositionComponent(owner=self, position=location)
 		
 		self.shape = shapes.Circle(owner=self, rad=rad, drawtype="fill")
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.5,0.5,0.5))
+		self.physics_component = PhysicsBody(owner=self, position_component=self.position_component)
+		self.renderable_component = Renderable(owner=self, position_component=self.position_component, color=(0.5,0.5,0.5))
 		
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
+		self.collision_component = Collider(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.collision_component.collide = self.collide
 		
 		self.enemy = True
 	def collide(self,other):
-		if hasattr(other.owner,"bullet") and other.owner.bullet: self.basic_component.dead = True
+		if hasattr(other.owner,"bullet") and other.owner.bullet: self.lifecycle.dead = True
 
 ################################
 ### Player-related stuff!    ###
@@ -114,16 +113,16 @@ class EnemyBall(Entity):
 class PlayerBall(Entity):
 	""" The player. Oh my, but this is a big class. Oh well. It's an important object. """
 	def __init__(self,pscreen, location=v(0,0), *args, **kwargs):
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.basic_component.update = self.update
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
+		self.lifecycle.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
 		
 		self.shape = shapes.Circle(owner=self, rad=15)
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.0, 0.6, 0.0))
+		self.physics_component = PhysicsBody(owner=self, position_component=self.position_component)
+		self.renderable_component = Renderable(owner=self, position_component=self.position_component, color=(0.0, 0.6, 0.0))
 		self.input_listeners = None #TODO: input listener component.
 
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
+		self.collision_component = Collider(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		
 		self.thrust = 30000
 		self.thrustdir = v(0,0)
@@ -132,27 +131,27 @@ class PlayerBall(Entity):
 		#self.shape2 = shapes.Circle(10, rad=self.rad/4, drawtype="fill", invert=0)
 
 	def fire_bullet(self):
-		newthing = BulletBall(self.basic_component.parent_screen, self, location=self.position_component.position)
+		newthing = BulletBall(self.lifecycle.parent_screen, self, location=self.position_component.position)
 		svel = self.physics_component.vel
 		if abs(svel) == 0: newthing.physics_component.vel = v(0, 800)
 		else: newthing.physics_component.vel = svel + 800*svel.unit()
-		self.basic_component.parent_screen.add_entity(newthing)
+		self.lifecycle.parent_screen.add_entity(newthing)
 
 	def fire_bomb(self):
-		newthing = BombBall(self.basic_component.parent_screen, self, location=self.position_component.position)
+		newthing = BombBall(self.lifecycle.parent_screen, self, location=self.position_component.position)
 		svel = self.physics_component.vel
 		if abs(svel) == 0: newthing.physics_component.vel = v(0, 800)
 		else: newthing.physics_component.vel = svel + 800*svel.unit()
-		self.basic_component.parent_screen.add_entity(newthing)
+		self.lifecycle.parent_screen.add_entity(newthing)
 
 	def fire_laser(self):
 		svel = self.physics_component.vel
 		if abs(svel) == 0: direct = v(0,1)
 		else: direct = svel.unit()
-		newlaser = LaserLine(self.basic_component.parent_screen, self, location=self.position_component.position, direction=direct)
-		self.basic_component.parent_screen.add_entity(newlaser)
+		newlaser = LaserLine(self.lifecycle.parent_screen, self, location=self.position_component.position, direction=direct)
+		self.lifecycle.parent_screen.add_entity(newlaser)
 
-	def gotkill(self, other): self.basic_component.parent_screen.killcountincrease()
+	def gotkill(self, other): self.lifecycle.parent_screen.killcountincrease()
 	def update(self,timestep): self.physics_component.acc += self.thrust*timestep*self.thrustdir
 	def on_key_press(self, symbol, modifiers):
 		if symbol == key.UP: self.thrustdir = self.thrustdir + v(0,2)
@@ -179,25 +178,25 @@ class BulletBall(Entity):
 		self.time_to_live = 4
 		self.time=0
 
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.basic_component.update = self.update
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
+		self.lifecycle.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
 
 		self.shape = shapes.Circle(owner=self, rad=5)
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(1.0, 0.2, 0.5))
+		self.physics_component = PhysicsBody(owner=self, position_component=self.position_component)
+		self.renderable_component = Renderable(owner=self, position_component=self.position_component, color=(1.0, 0.2, 0.5))
 		
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
+		self.collision_component = Collider(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.collision_component.collides_with = lambda other: other is not self.parent
 		self.collision_component.collide = self.collide
 	def collide(self,other):
 		if hasattr(other.owner,"enemy") and other.owner.enemy:
-			self.basic_component.dead = True
+			self.lifecycle.dead = True
 			self.parent.gotkill(other.owner)
 	def update(self,timestep):
 		self.time += timestep
 		if self.time>self.time_to_live:
-			self.basic_component.dead = True
+			self.lifecycle.dead = True
 
 class LaserLine(Entity):
 	""" A laser beam! """
@@ -207,25 +206,25 @@ class LaserLine(Entity):
 		self.time_to_live = 0.5
 		self.time=0
 
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.basic_component.update = self.update
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
+		self.lifecycle.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
 		
 		self.shape=shapes.Line(owner=self, vector=direction*length)
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, tangible=False, immobile=True)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(0.0, 0.0, 1.0, 1.0))
+		self.physics_component = PhysicsBody(owner=self, position_component=self.position_component, tangible=False, immobile=True)
+		self.renderable_component = Renderable(owner=self, position_component=self.position_component, color=(0.0, 0.0, 1.0, 1.0))
 		
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
+		self.collision_component = Collider(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.collision_component.collides_with = lambda other: other is not self.parent
 		self.collision_component.collide = self.collide
 	def collide(self,other):
 		if hasattr(other, "enemy") and other.enemy:
-			self.basic_component.dead = True
+			self.lifecycle.dead = True
 			self.parent.gotkill(other)
 	def update(self,timestep):
 		self.time += timestep
 		self.renderable_component.color = (0.0, 0.0, 1.0-(self.time/self.time_to_live), 1.0-(self.time/self.time_to_live))
-		if self.time>self.time_to_live: self.basic_component.dead = True
+		if self.time>self.time_to_live: self.lifecycle.dead = True
 
 class BombBall(Entity):
 	""" A bomb, which explodes after a certain amount of time to throw things flying. """
@@ -234,22 +233,22 @@ class BombBall(Entity):
 		self.time_to_live=2
 		self.time=0
 
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.basic_component.update = self.update
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
+		self.lifecycle.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
 		
 		self.shape = shapes.Circle(owner=self, rad=8)
-		self.physics_component = PhysicsComponent(owner=self, pos=location)
-		self.renderable_component = RenderableComponent(owner=self, color=(0.0, 0.0, 0.0, 1.0))
+		self.physics_component = PhysicsBody(owner=self, pos=location)
+		self.renderable_component = Renderable(owner=self, color=(0.0, 0.0, 0.0, 1.0))
 		
-		self.collision_component = CollisionComponent(owner=self)
+		self.collision_component = Collider(owner=self)
 		self.collision_component.collides_with = lambda other: other is not self.parent
 	def update(self,timestep):
 		self.time += timestep
 		if self.time > self.time_to_live: 
-			new_explosion = BombExplosion(self.basic_component.parent_screen, self, location=self.position_component.position)
-			self.basic_component.parent_screen.add_entity( new_explosion  )
-			self.basic_component.dead = True
+			new_explosion = BombExplosion(self.lifecycle.parent_screen, self, location=self.position_component.position)
+			self.lifecycle.parent_screen.add_entity( new_explosion  )
+			self.lifecycle.dead = True
 		self.renderable_component.color = ((self.time/self.time_to_live), 0.0, 0.0, 1.0)
 class BombExplosion(Entity):
 	""" The explosion for the bomb. This is a non-tangible object which needs to collide with things. """
@@ -258,15 +257,15 @@ class BombExplosion(Entity):
 		self.time_to_live=0.5
 		self.time=0
 
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.basic_component.update = self.update
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
+		self.lifecycle.update = self.update
 		self.position_component = PositionComponent(owner=self, position=location)
 		
 		self.shape = shapes.Circle(owner=self, rad=100, drawtype="fill")
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, tangible=False, immobile=True)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, color=(1, 0, 0, 1))
+		self.physics_component = PhysicsBody(owner=self, position_component=self.position_component, tangible=False, immobile=True)
+		self.renderable_component = Renderable(owner=self, position_component=self.position_component, color=(1, 0, 0, 1))
 		
-		self.collision_component = CollisionComponent(owner=self, position_component=self.position_component, physics_component=self.physics_component)
+		self.collision_component = Collider(owner=self, position_component=self.position_component, physics_component=self.physics_component)
 		self.collision_component.collide = self.collide
 	def collide(self, other): 
 		vector = other.owner.position_component.position - self.position_component.position
@@ -274,7 +273,7 @@ class BombExplosion(Entity):
 	def update(self, timestep):
 		self.time += timestep
 		if self.time > self.time_to_live:
-			self.basic_component.dead = True
+			self.lifecycle.dead = True
 		self.renderable_component.color = (1.0-self.time/self.time_to_live, 0, 0, 1.0-self.time/self.time_to_live)
 
 class CameraFollower(Entity):
@@ -300,12 +299,12 @@ class CameraFollower(Entity):
 		self.scale = 0.5
 		self.decay = 0.4
 
-		self.basic_component = BasicComponent(owner=self, screen=pscreen)
-		self.basic_component.update = self.update
+		self.lifecycle = Lifecycle(owner=self, screen=pscreen)
+		self.lifecycle.update = self.update
 		self.position_component = PositionComponent(owner=self, position=latch.position_component.position)
 		
-		self.physics_component = PhysicsComponent(owner=self, position_component=self.position_component, tangible=False, world_forces=False)
-		self.renderable_component = RenderableComponent(owner=self, position_component=self.position_component, priority=True)
+		self.physics_component = PhysicsBody(owner=self, position_component=self.position_component, tangible=False, world_forces=False)
+		self.renderable_component = Renderable(owner=self, position_component=self.position_component, priority=True)
 		self.renderable_component.draw = self.draw
 	def update(self,timestep):
 		# The reason this doesn't call update_inertia is that that also deals with the collision tree.
@@ -316,12 +315,12 @@ class CameraFollower(Entity):
 		scalefactor = 1 + 2/(1+math.exp(-targvel))
 		self.scale = self.decay*self.scale + (1-self.decay)/scalefactor
 
-		screen = self.basic_component.parent_screen
+		screen = self.lifecycle.parent_screen
 		
 		self.hud_label.text = self.template_text.format(screen.window.framerate, len(screen.coltree), len(screen.nonstatic_objects))
 
 	def draw(self):
-		parent_screen = self.basic_component.parent_screen # Need this a lot, so we should pull it into the local namespace.
+		parent_screen = self.lifecycle.parent_screen # Need this a lot, so we should pull it into the local namespace.
 		opengl.glMatrixMode(opengl.GL_PROJECTION)
 		opengl.glLoadIdentity()
 		camera_position = self.position_component.position
