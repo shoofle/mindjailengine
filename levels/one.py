@@ -1,7 +1,11 @@
+import pyglet
+from pyglet import text
+
 from random import uniform
 from vectors import v
+
 from components import *
-from world_entities.world_objects import *
+from world_entities import *
 
 def generate(self):
 	manifest = []
@@ -37,9 +41,26 @@ def generate(self):
 	wave_2 = [ ObstacleLine(self, location=v((i+0.5)*wavelength, h+depth), endpoint=v((i+1)*wavelength, h), thick=20) for i in range(-10,10) ]
 	manifest.extend(wave_2)
 
-	dummy = {'renderable_component': text.Label( 'THIS IS A TEST', 'Arial', 24, color = (0, 0, 0, 200), 
-			x = self.window.width/2, y = self.window.height/4, anchor_x="center", anchor_y="center", 
-			width=3*self.window.width/4, height=3*self.window.height/4, multiline=1)}
+	class DummyRender(Renderable):
+		label = text.Label("",
+				'Arial', 24, color=(0, 0, 0, 200),
+				x=0, y=0, anchor_x="center", anchor_y="center",
+				width=3*self.window.width/4, height=3*self.window.height/4, multiline=1)
+		def __init__(self, text='THIS IS A TEST', *args, **kwargs):
+			super().__init__(*args, **kwargs)
+			self.label.text = text
+		def draw(self):
+			position = self.position_component.position
+			pyglet.gl.glPushMatrix()
+			pyglet.gl.glTranslatef(position.x, position.y, 0)
+			self.label.draw()
+			pyglet.gl.glPopMatrix()
+	
+	dummy = Entity()
+	dummy.renderable_component = DummyRender(owner=dummy, position=v(self.window.width/2, self.window.height/4))	
+	#dummy = {'renderable_component': text.Label( 'THIS IS A TEST', 'Arial', 24, color = (0, 0, 0, 200), 
+	#		x = self.window.width/2, y = self.window.height/4, anchor_x="center", anchor_y="center", 
+	#		width=3*self.window.width/4, height=3*self.window.height/4, multiline=1)}
 	manifest.append( dummy )
 
 	return manifest

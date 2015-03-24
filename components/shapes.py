@@ -49,42 +49,6 @@ def intersect(me, you):
 		if you.name == SHAPE_LINE: return pointline(me, you)
 		if you.name == SHAPE_RECTANGLE: return pointrect(me, you)
 		if you.name == SHAPE_POINT: return pointpoint(me, you)
-	"""
-	if me.name is SHAPE_CIRCLE and you.name is SHAPE_CIRCLE: return circlecircle(me, you)
-
-
-
-	if me.name is SHAPE_LINE and you.name is SHAPE_LINE: return None
-
-	if me.name is SHAPE_LINE and you.name is SHAPE_CIRCLE: return linecircle(me, you)
-	if me.name is SHAPE_CIRCLE and you.name is SHAPE_LINE: return circleline(me, you)
-
-
-
-
-	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_RECTANGLE: return rectrect(me, you)
-
-	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_CIRCLE: return rectcircle(me, you)
-	if me.name is SHAPE_CIRCLE and you.name is SHAPE_RECTANGLE: return circlerect(me, you)
-
-	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_LINE: return None
-	if me.name is SHAPE_LINE and you.name is SHAPE_RECTANGLE: return None
-
-
-
-
-
-	if me.name is SHAPE_POINT and you.name is SHAPE_POINT: return pointpoint(me, you)
-	
-	if me.name is SHAPE_POINT and you.name is SHAPE_CIRCLE: return pointcircle(me, you)
-	if me.name is SHAPE_CIRCLE and you.name is SHAPE_POINT: return circlepoint(me, you)
-
-	if me.name is SHAPE_POINT and you.name is SHAPE_LINE: return pointline(me, you)
-	if me.name is SHAPE_LINE and you.name is SHAPE_POINT: return linepoint(me, you)
-
-	if me.name is SHAPE_POINT and you.name is SHAPE_RECTANGLE: return pointrect(me, you)
-	if me.name is SHAPE_RECTANGLE and you.name is SHAPE_POINT: return rectpoint(me, you)
-	"""
 
 def reverse_test(function):
 	""" Utility to create an reversed collision test function.
@@ -94,9 +58,6 @@ def reverse_test(function):
 	def new_func(shape_one, shape_two, *args, **kwargs):
 		output = function(shape_two, shape_one, *args, **kwargs)
 		return -output if output else None
-		#if output is not None:
-		#	return -output
-		#return None
 	new_func.__doc__ = function.__doc__
 	new_func.__name__ = "reverse_" + function.__name__
 	return new_func
@@ -335,19 +296,15 @@ class Shape(AbstractComponent):
 	def __init__(self, position = None, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-		new_position = None
 		if position is None:
-			if self.owner is not None:
-				if hasattr(self.owner, 'position_component'):
-					new_position = self.owner.position_component
+			if hasattr(self.owner, 'position_component'):
+				position = self.owner.position_component
 			else:
-				new_position = PositionComponent(owner=self)
-		elif isinstance(position, v):
-			new_position = PositionComponent(owner=self, position=position)
-		elif isinstance(position, PositionComponent):
-			new_position = position
-
-		self.position_component = new_position
+				position = PositionComponent(owner=self.owner)
+		if isinstance(position, v):
+			position = PositionComponent(owner=self, position=position)
+		if isinstance(position, PositionComponent):
+			self.position_component = position
 
 		self.name = None
 

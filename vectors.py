@@ -65,3 +65,5 @@ class v(object):
 		return v(-self.y, self.x)
 	def __repr__(self):
 		return "v({},{})".format(self.x, self.y)
+	def xytuple(self):
+		return (self.x, self.y)
