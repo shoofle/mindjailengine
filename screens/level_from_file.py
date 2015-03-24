@@ -42,7 +42,7 @@ class GameplayScreen(object):
 
 		self.killcount = 0
 		self.total_time = 0
-		self.camera_rect = CollisionComponent(owner=None, pos=v(0,0), shape=shapes.Rectangle(-1,1,-1,1))
+		self.camera_rect = CollisionComponent(owner=None, shape=shapes.Rectangle(-1,1,-1,1))
 		self.constants = {'drag':10, 'gravity':v(0,-30000), 'elasticity':0.7, 'friction':0.9, 'displace':0.7}
 
 		opengl.glEnable(opengl.GL_BLEND)

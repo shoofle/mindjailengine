@@ -333,7 +333,7 @@ def point_in_object(vect, obj):
 class Shape(AbstractComponent):
 	""" An abstract "shape" component. """
 	def __init__(self, position = None, *args, **kwargs):
-		super(Shape, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 
 		new_position = None
 		if position is None:
@@ -354,7 +354,7 @@ class Shape(AbstractComponent):
 class Point(Shape):
 	""" Just a point. """
 	def __init__(self, *args, **kwargs):
-		super(Point, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		
 		self.name = SHAPE_POINT
 		self.xbounds, self.ybounds = (0, 0), (0, 0)
